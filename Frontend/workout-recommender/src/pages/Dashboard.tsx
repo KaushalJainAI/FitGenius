@@ -1,50 +1,60 @@
 import { ArrowRight, Activity, Calendar, Award, HeartPulse } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { bmi, bmiLabel, getCheckIn, getProfile, getRecommendation, saveCheckIn, saveProfile, saveRecommendation } from "../lib/recommendationData";
+import { bmi, bmiLabel, defaultCheckIn, defaultProfile } from "../lib/recommendationData";
+import type { DailyCheckIn, HealthProfile, Recommendation } from "../lib/recommendationData";
 import { api } from "../lib/api";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(getProfile);
-  const [checkin, setCheckin] = useState(getCheckIn);
-  const [plan, setPlan] = useState(getRecommendation);
-  const bmiValue = bmi(profile);
+  const [profile, setProfile] = useState<HealthProfile | null>(null);
+  const [checkin, setCheckin] = useState<DailyCheckIn | null>(null);
+  const [plan, setPlan] = useState<Recommendation | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.profile().then((data) => {
-      const next = { ...getProfile(), ...(data as object) };
-      setProfile(next);
-      saveProfile(next);
-    }).catch(() => undefined);
-
-    api.latestCheckIn().then((data) => {
-      const next = { ...getCheckIn(), ...(data as object) };
-      setCheckin(next);
-      saveCheckIn(next);
-    }).catch(() => undefined);
-
-    api.latestRecommendation().then((data) => {
-      const next = data as ReturnType<typeof getRecommendation>;
-      setPlan(next);
-      saveRecommendation(next);
-    }).catch(() => undefined);
+    Promise.allSettled([
+      api.profile(),
+      api.latestCheckIn(),
+      api.latestRecommendation(),
+    ]).then(([profileResult, checkinResult, planResult]) => {
+      if (profileResult.status === "fulfilled") setProfile({ ...defaultProfile, ...(profileResult.value as Partial<HealthProfile>) });
+      if (checkinResult.status === "fulfilled") setCheckin({ ...defaultCheckIn, ...(checkinResult.value as Partial<DailyCheckIn>) });
+      if (planResult.status === "fulfilled") setPlan(planResult.value as Recommendation);
+    }).finally(() => setIsLoading(false));
   }, []);
+
+  if (isLoading) {
+    return <div className="rounded-lg border border-border bg-card p-6 text-muted-foreground">Fetching your live dashboard from the backend...</div>;
+  }
+
+  if (!profile) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="text-xl font-bold">Create your health profile first</h2>
+        <p className="mt-2 text-muted-foreground">Your dashboard is locked to backend data, so it needs an authenticated profile before showing recommendations.</p>
+        <button onClick={() => navigate("/profile")} className="mt-5 rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90">Set up profile</button>
+      </div>
+    );
+  }
+
+  const liveCheckin = checkin ?? defaultCheckIn;
+  const bmiValue = bmi(profile);
 
   return (
     <div className="space-y-6 stagger-children animate-fade-in-up">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard icon={<Activity />} label="Current Split" value={plan.workout_split} />
+        <StatCard icon={<Activity />} label="Current Split" value={plan?.workout_split ?? "No plan yet"} />
         <StatCard icon={<Calendar />} label="Training Days" value={`${profile.exercise_frequency}/week`} />
         <StatCard icon={<Award />} label="BMI Status" value={`${bmiValue} ${bmiLabel(bmiValue)}`} />
-        <StatCard icon={<HeartPulse />} label="Readiness" value={`${checkin.energy_level}/5 energy`} />
+        <StatCard icon={<HeartPulse />} label="Readiness" value={checkin ? `${checkin.energy_level}/5 energy` : "No check-in"} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6 h-full">
         <div className="bg-card border border-border p-6 rounded-lg shadow-card hover-lift flex flex-col justify-between min-h-[300px]">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-secondary mb-3">Next workout</p>
-            <h2 className="text-xl font-bold mb-2 text-foreground">{plan.exercise_plan[0]?.day}: {plan.exercise_plan[0]?.focus}</h2>
+            <h2 className="text-xl font-bold mb-2 text-foreground">{plan ? `${plan.exercise_plan[0]?.day}: ${plan.exercise_plan[0]?.focus}` : "Generate your first backend plan"}</h2>
             <p className="text-muted-foreground max-w-xl">
               Your plan is using {profile.fitness_goal.replace("_", " ")} goals, {profile.available_equipment.replace("_", " ")} access, and today's sleep, soreness, stress, injury, and time signals.
             </p>
@@ -66,11 +76,11 @@ export default function Dashboard() {
             <Signal label="Goal" value={profile.fitness_goal.replace("_", " ")} />
             <Signal label="Experience" value={profile.experience_level} />
             <Signal label="Diet" value={profile.dietary_preference.replace("_", " ")} />
-            <Signal label="Sleep" value={`${checkin.sleep_hours || "-"}h / ${checkin.sleep_quality}`} />
-            <Signal label="Soreness" value={`${checkin.soreness_level}/5`} />
-            <Signal label="Stress" value={`${checkin.stress_level}/5`} />
-            <Signal label="Minutes" value={`${checkin.available_minutes || 60}`} />
-            <Signal label="Intensity" value={checkin.preferred_intensity} />
+            <Signal label="Sleep" value={`${liveCheckin.sleep_hours || "-"}h / ${liveCheckin.sleep_quality}`} />
+            <Signal label="Soreness" value={`${liveCheckin.soreness_level}/5`} />
+            <Signal label="Stress" value={`${liveCheckin.stress_level}/5`} />
+            <Signal label="Minutes" value={`${liveCheckin.available_minutes || 60}`} />
+            <Signal label="Intensity" value={liveCheckin.preferred_intensity} />
           </div>
           <button onClick={() => navigate("/profile")} className="mt-6 w-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground px-5 py-2.5 rounded-lg font-medium transition-colors">
             Update Full Profile

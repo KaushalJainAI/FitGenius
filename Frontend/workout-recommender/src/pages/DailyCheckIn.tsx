@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarCheck, HeartPulse, Save, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { buildRecommendation, getCheckIn, getProfile, saveCheckIn, saveRecommendation } from "../lib/recommendationData";
+import { defaultCheckIn, getCheckIn, saveCheckIn } from "../lib/recommendationData";
 import type { DailyCheckIn as CheckIn } from "../lib/recommendationData";
 import { api } from "../lib/api";
 
@@ -18,7 +18,7 @@ export default function DailyCheckIn() {
   useEffect(() => {
     api.latestCheckIn()
       .then((data) => {
-        const next = { ...getCheckIn(), ...(data as Partial<CheckIn>) };
+        const next = { ...defaultCheckIn, ...(data as Partial<CheckIn>) };
         setCheckin(next);
         saveCheckIn(next);
       })
@@ -41,13 +41,11 @@ export default function DailyCheckIn() {
       const next = { ...checkin, ...saved };
       saveCheckIn(next);
       const generated = await api.generateRecommendation();
-      saveRecommendation((generated.data ?? buildRecommendation(getProfile(), next)) as ReturnType<typeof buildRecommendation>);
+      if (!generated.data) throw new Error("Backend did not return a recommendation.");
       navigate("/plan");
     } catch (err) {
       saveCheckIn(checkin);
-      saveRecommendation(buildRecommendation(getProfile(), checkin));
-      setNotice(err instanceof Error ? `${err.message}. Showing locally adapted plan until the backend is reachable.` : "Backend save failed. Showing locally adapted plan.");
-      navigate("/plan");
+      setNotice(err instanceof Error ? err.message : "Backend save failed. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -97,7 +95,18 @@ export default function DailyCheckIn() {
       </section>
 
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => saveCheckIn(checkin)} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted">
+        <button type="button" onClick={async () => {
+          setNotice("");
+          try {
+            const saved = await api.saveCheckIn(checkin as unknown as Record<string, unknown>) as Partial<CheckIn>;
+            const next = { ...checkin, ...saved };
+            setCheckin(next);
+            saveCheckIn(next);
+            setNotice("Check-in saved to the backend.");
+          } catch (err) {
+            setNotice(err instanceof Error ? err.message : "Backend save failed. Please try again.");
+          }
+        }} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted">
           <Save size={18} /> Save Check-In
         </button>
         <button disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-gradient-hero px-6 py-3 text-sm font-semibold text-white shadow-elegant disabled:opacity-70">

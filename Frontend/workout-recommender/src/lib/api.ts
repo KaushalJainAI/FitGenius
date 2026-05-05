@@ -116,11 +116,13 @@ export const api = {
     body: JSON.stringify(payload),
   }),
   latestCheckIn: () => apiFetch("/checkins/latest/"),
+  checkInHistory: () => apiFetch("/checkins/history/"),
   saveCheckIn: (payload: Record<string, unknown>) => apiFetch("/checkins/", {
     method: "POST",
     body: JSON.stringify(payload),
   }),
   latestRecommendation: () => apiFetch("/recommendations/latest/"),
+  recommendationHistory: () => apiFetch("/recommendations/history/"),
   generateRecommendation: () => apiFetch<{ success: boolean; data: unknown }>("/recommendations/generate/", {
     method: "POST",
     body: JSON.stringify({}),

@@ -1,23 +1,34 @@
 import { CheckCircle, RefreshCw, Settings, Utensils } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getRecommendation, saveRecommendation } from "../lib/recommendationData";
 import type { Recommendation } from "../lib/recommendationData";
 import { api } from "../lib/api";
 
 export default function MyPlan() {
-  const [recommendation, setRecommendation] = useState<Recommendation>(getRecommendation);
+  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [notice, setNotice] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     api.latestRecommendation()
-      .then((data) => {
-        const next = data as Recommendation;
-        setRecommendation(next);
-        saveRecommendation(next);
-      })
-      .catch(() => setNotice("Showing the latest local plan. Generate from Profile or Check-In to sync with backend."));
+      .then((data) => setRecommendation(data as Recommendation))
+      .catch((err) => setNotice(err instanceof Error ? err.message : "No backend plan found."))
+      .finally(() => setIsLoading(false));
   }, []);
+
+  if (isLoading) {
+    return <div className="rounded-lg border border-border bg-card p-6 text-muted-foreground">Fetching your latest plan from the backend...</div>;
+  }
+
+  if (!recommendation) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="text-xl font-bold">No backend plan yet</h2>
+        <p className="mt-2 text-muted-foreground">{notice || "Generate a plan after completing your profile."}</p>
+        <Link to="/profile" className="mt-5 inline-flex rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90">Generate plan</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 animate-slide-in-right">
@@ -97,7 +108,9 @@ function Macro({ label, value }: { label: string; value: number }) {
   return <div className="rounded-lg bg-muted/30 p-3 text-center"><p className="text-lg font-bold">{value}g</p><p className="text-xs text-muted-foreground">{label}</p></div>;
 }
 
-function WorkoutDay({ day, focus, colorClass, exercises }: { day: string; focus: string; colorClass: string; exercises: any[] }) {
+type Exercise = Recommendation["exercise_plan"][number]["exercises"][number];
+
+function WorkoutDay({ day, focus, colorClass, exercises }: { day: string; focus: string; colorClass: string; exercises: Exercise[] }) {
   return (
     <div className="border border-border/60 rounded-lg overflow-hidden hover-lift bg-background shadow-sm transition-all group">
       <div className="px-5 py-4 flex items-center gap-2 border-b border-border/60 bg-muted/20 group-hover:bg-muted/40 transition-colors">

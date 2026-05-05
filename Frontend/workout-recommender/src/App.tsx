@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { 
   Activity, 
   Dumbbell, 
@@ -20,12 +20,18 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import SettingsPage from './pages/Settings';
 import UserAccount from './pages/UserAccount';
+import { useAuth } from './contexts/AuthContext';
 
 export default function App() {
   const location = useLocation();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/register';
 
   if (isAuthRoute) {
+    if (isAuthenticated) {
+      return <Navigate to="/" replace />;
+    }
+
     return (
       <div className="dark">
          <Routes>
@@ -35,6 +41,21 @@ export default function App() {
       </div>
     );
   }
+
+  if (isLoading) {
+    return (
+      <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  const displayName = user?.first_name || user?.username || 'Athlete';
+  const avatarSeed = encodeURIComponent(user?.username || user?.email || 'FitGenius');
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/30 dark">
@@ -70,7 +91,7 @@ export default function App() {
         {/* Universal Header */}
         <header className="mb-8 flex justify-between items-center animate-fade-in-up">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Welcome back, Sarah! <span className="animate-wiggle inline-block">👋</span></h1>
+            <h1 className="text-3xl font-bold tracking-tight">Welcome back, {displayName}!</h1>
             <p className="text-muted-foreground mt-1">Consistency is key. You're doing great.</p>
           </div>
           <div className="flex items-center gap-4">
@@ -79,7 +100,7 @@ export default function App() {
               <span>3 Day Streak</span>
             </div>
             <NavLink to="/account" className="block h-10 w-10 rounded-full bg-gradient-card border-2 border-primary/20 flex items-center justify-center overflow-hidden shadow-sm hover-lift cursor-pointer transition-transform hover:scale-105 active:scale-95">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah&backgroundColor=b6e3f4" alt="User avatar" className="h-full w-full object-cover" />
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}&backgroundColor=b6e3f4`} alt="User avatar" className="h-full w-full object-cover" />
             </NavLink>
           </div>
         </header>
@@ -94,6 +115,7 @@ export default function App() {
             <Route path="/progress" element={<Progress />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/account" element={<UserAccount />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </main>

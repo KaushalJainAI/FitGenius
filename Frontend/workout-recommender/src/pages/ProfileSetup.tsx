@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Activity, HeartPulse, Salad, Save, Sparkles, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { bmi, bmiLabel, buildRecommendation, getCheckIn, getProfile, saveProfile, saveRecommendation } from "../lib/recommendationData";
+import { bmi, bmiLabel, defaultProfile, getProfile, saveProfile } from "../lib/recommendationData";
 import type { HealthProfile } from "../lib/recommendationData";
 import { api } from "../lib/api";
 
@@ -29,7 +29,7 @@ export default function ProfileSetup() {
   useEffect(() => {
     api.profile()
       .then((data) => {
-        const next = { ...getProfile(), ...(data as Partial<HealthProfile>) };
+        const next = { ...defaultProfile, ...(data as Partial<HealthProfile>) };
         setProfile(next);
         saveProfile(next);
       })
@@ -52,14 +52,11 @@ export default function ProfileSetup() {
       const next = { ...profile, ...saved };
       saveProfile(next);
       const generated = await api.generateRecommendation();
-      const recommendation = (generated.data ?? buildRecommendation(next, getCheckIn())) as ReturnType<typeof buildRecommendation>;
-      saveRecommendation(recommendation);
+      if (!generated.data) throw new Error("Backend did not return a recommendation.");
       navigate("/plan");
     } catch (err) {
       saveProfile(profile);
-      saveRecommendation(buildRecommendation(profile, getCheckIn()));
-      setNotice(err instanceof Error ? `${err.message}. Showing locally generated plan until the backend is reachable.` : "Backend save failed. Showing locally generated plan.");
-      navigate("/plan");
+      setNotice(err instanceof Error ? err.message : "Backend save failed. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -132,7 +129,18 @@ export default function ProfileSetup() {
       </div>
 
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => { saveProfile(profile); }} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted">
+        <button type="button" onClick={async () => {
+          setNotice("");
+          try {
+            const saved = await api.saveProfile(profile as unknown as Record<string, unknown>) as Partial<HealthProfile>;
+            const next = { ...profile, ...saved };
+            setProfile(next);
+            saveProfile(next);
+            setNotice("Profile saved to the backend.");
+          } catch (err) {
+            setNotice(err instanceof Error ? err.message : "Backend save failed. Please try again.");
+          }
+        }} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted">
           <Save size={18} /> Save Profile
         </button>
         <button disabled={isGenerating} className="inline-flex items-center gap-2 rounded-lg bg-gradient-hero px-6 py-3 text-sm font-semibold text-white shadow-elegant disabled:opacity-70">
