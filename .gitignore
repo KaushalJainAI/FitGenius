@@ -1,0 +1,71 @@
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Django / backend runtime files
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+
+# ML model artifacts — never commit these
+Backend/recommendations/models/*.pkl
+Backend/recommendations/models/*.pkl.bz2
+recommendations/models/*.pkl
+
+# Notebook data and outputs
+Backend/notebooks/data/
+Backend/notebooks/data_analysis_charts/
+Backend/notebooks/output.log
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs and temporary build files
+*.log
+*.tmp
+build_temp.txt
+compile_errors.txt
+build_error.log
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Notebooks
+.ipynb_checkpoints/
+Backend/notebooks/data/
+Backend/notebooks/data_analysis_charts/
+
+# Generated ML artifacts
+Backend/recommendations/models/*.pkl
+recommendations/models/*.pkl
