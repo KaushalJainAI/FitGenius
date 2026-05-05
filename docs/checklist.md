@@ -5,6 +5,8 @@
 - [x] Update root README to describe the real datasets and merged schema.
 - [x] Update architecture documentation to explain the real data flow.
 - [x] Update notebook README to avoid overclaiming 30-feature training or true collaborative filtering.
+- [x] Update frontend README to describe the real app, auth flow, and routes.
+- [x] Update backend README to describe the real API and data models.
 - [ ] Update proposal/progress report after implementation changes are complete.
 
 ## Backend: Data Models
@@ -30,8 +32,8 @@
 - [x] Add `GET /api/checkins/latest/`.
 - [x] Add `GET /api/checkins/history/`.
 - [x] Add `GET /api/checkins/<id>/`.
-- [x] Confirm `GET /api/profiles/me/`.
-- [x] Confirm `PATCH /api/profiles/me/`.
+- [x] Confirm `GET /api/profiles/`.
+- [x] Confirm `POST /api/profiles/`.
 - [x] Confirm or add `POST /api/recommendations/generate/`.
 - [x] Add `GET /api/recommendations/latest/`.
 - [x] Add `GET /api/recommendations/history/`.
@@ -68,29 +70,30 @@
 
 ## Frontend: API Layer
 
-- [ ] Add API client methods for profile get/create/update.
-- [ ] Add API client methods for check-in create/latest/history.
-- [ ] Add API client methods for recommendation generate/latest/history/detail.
-- [ ] Add shared TypeScript types for profile, check-in, recommendation, exercise plan, diet plan.
-- [ ] Add loading and error handling for each API flow.
+- [x] Add API client methods for profile get/create/update.
+- [x] Add API client methods for check-in create/latest/history.
+- [x] Add API client methods for recommendation generate/latest/history/detail.
+- [x] Add shared TypeScript types for profile, check-in, recommendation, exercise plan, diet plan.
+- [x] Add loading and error handling for each API flow.
+- [x] Add auth context and token refresh support.
 
 ## Frontend: Pages
 
-- [ ] Build or update Health Profile page.
-- [ ] Build Daily Check-In page.
-- [ ] Build Recommendations page.
+- [x] Build or update Health Profile page.
+- [x] Build Daily Check-In page.
+- [x] Build Recommendations page.
 - [ ] Build Recommendation History page.
 - [ ] Build Progress/Trends page.
-- [ ] Update Dashboard with latest profile, check-in, and recommendation summary.
+- [x] Update Dashboard with latest profile, check-in, and recommendation summary.
 
 ## Frontend: UX Details
 
-- [ ] Separate stable profile questions from daily check-in questions.
-- [ ] Use sliders/segmented controls for energy, soreness, stress, and intensity.
-- [ ] Show BMI as backend-calculated, not manually entered.
-- [ ] Show clear call-to-action to check in before generating today's plan.
-- [ ] Show explanation for why the recommendation changed.
-- [ ] Show confidence and similar profile count.
+- [x] Separate stable profile questions from daily check-in questions.
+- [x] Use sliders/segmented controls for energy, soreness, stress, and intensity.
+- [x] Show BMI as backend-calculated, not manually entered.
+- [x] Show clear call-to-action to check in before generating today's plan.
+- [x] Show explanation for why the recommendation changed.
+- [x] Show confidence and similar profile count.
 - [ ] Show empty states for no profile, no check-in, and no recommendation.
 
 ## Coursework Demo

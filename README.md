@@ -1,81 +1,61 @@
 # FitGenius AI - Workout & Diet Recommender
 
-Welcome to the **FitGenius AI Recommender System**. This repository contains both the React frontend and the Django backend required to run the personalized fitness platform. The system uses four primary health and fitness CSV datasets, normalizes them into a shared recommendation schema, and combines similarity matching with rule-based diet/workout generation.
+FitGenius AI is a full-stack fitness recommender with a Django REST backend and a React + Vite frontend. The system keeps stable user health data separate from daily check-ins, then combines both with the recommendation pipeline to generate workout, diet, and safety-aware guidance.
 
-## System Features
-- JWT Secure Authentication (HttpOnly Cookies)
-- Comprehensive User Health Profiles (Demographics, Medical History, Lifestyle input)
-- Machine Learning recommendation engine using KNN profile similarity, exported preprocessing artifacts, and a reference pool of historical diet/workout plans.
-- Fully responsive Dashboard UI for tracking daily plans.
+## What The App Does
 
-## Directory Structure
-- `/Backend` - Django REST Framework project
-- `/Frontend/workout-recommender` - React application built with Vite
-- `/docs` - Project architecture, implementation plan, and execution checklist
+- JWT authentication with access and refresh tokens.
+- Stable health profile capture for demographics, medical history, diet, goals, and equipment.
+- Daily check-ins for sleep, soreness, stress, energy, injury, steps, and workout availability.
+- Recommendation generation with profile + check-in snapshots.
+- Dashboard, plan, and progress views for the current recommendation workflow.
 
-## Project Documentation
+## Repository Layout
 
-Use this README as the entry point for the project. Supporting documents are kept under `docs/`:
+- `Backend/` - Django REST Framework API, authentication, profile/check-in models, recommendation engine, notebook pipeline.
+- `Frontend/workout-recommender/` - React app with token-aware API client and auth context.
+- `docs/` - Architecture, implementation plan, and checklist.
 
-- [Architecture](docs/architecture.md) - system components, dataset layer, and backend/frontend data flow.
-- [Implementation Plan](docs/plan.md) - planned backend, frontend, model, and demo upgrades for the dynamic recommender.
-- [Implementation Checklist](docs/checklist.md) - task checklist for building and verifying the coursework-ready system.
-- [Notebook Pipeline Notes](Backend/notebooks/README.md) - dataset details, notebook mapping, and model-training notes.
-
-## Getting Started
-
-### Local Backend Setup
-1. Navigate to the backend directory:
-   ```bash
-   cd Backend
-   ```
-2. Activate the virtual environment:
-   ```bash
-   # Windows
-   .\venv\Scripts\activate
-   ```
-3. Install requirements (if not already):
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run migrations and start the server:
-   ```bash
-   python manage.py runserver
-   ```
-
-### Local Frontend Setup
-1. Navigate to the frontend directory:
-   ```bash
-   cd Frontend/workout-recommender
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Dataset Merging
-The notebook pipeline under `Backend/notebooks` merges four source files into `Backend/notebooks/data/merged_fitness_data.csv`:
-
-| Source file | Rows | Main contribution |
-| :--- | ---: | :--- |
-| `gym_recommendation.csv` | 14,589 | Fitness goal, diet, exercise recommendation, BMI, hypertension/diabetes flags |
-| `diet_recommendations.csv` | 1,000 | Disease type, dietary restrictions, activity level, diet recommendation |
-| `personalized_medical_diet.csv` | 5,000 | Chronic disease, medical/lifestyle attributes, personalized meal plan |
-| `diet_workout_dataset.csv` | 2,600 | Heart-rate/body-temperature workout and diet-plan signals |
-
-The merged production corpus currently has 23,189 rows and 12 normalized columns:
-
-`source`, `Age`, `Gender`, `Height`, `Weight`, `BMI`, `Chronic_Disease`, `Activity_Level`, `Dietary_Preference`, `Fitness_Goal`, `diet_recommendation`, `exercise_plan`.
-
-Run the pipeline from `Backend/notebooks`:
+## Backend Quick Start
 
 ```bash
-python merge_datasets.py
-python train_model.py
+cd Backend
+.\venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
 ```
 
-`train_model.py` fits the preprocessing pipeline, KNN similarity model, experimental SVD model, and reference plan pool, then exports `.pkl` artifacts to `Backend/recommendations/models/`.
+The backend runs on `http://127.0.0.1:8000`.
+
+## Frontend Quick Start
+
+```bash
+cd Frontend/workout-recommender
+npm install
+npm run dev
+```
+
+The frontend uses a Vite proxy so `/api/*` requests go to the Django server during development.
+
+## Key API Areas
+
+- `POST /api/auth/register/`, `POST /api/auth/login/`, `POST /api/auth/logout/`
+- `GET /api/auth/profile/`
+- `GET /api/profiles/`, `POST /api/profiles/`
+- `GET /api/checkins/latest/`, `POST /api/checkins/`
+- `GET /api/recommendations/latest/`, `POST /api/recommendations/generate/`
+
+## Documentation
+
+- [Backend README](Backend/README.md)
+- [Frontend README](Frontend/workout-recommender/README.md)
+- [Architecture](docs/architecture.md)
+- [Implementation Plan](docs/plan.md)
+- [Checklist](docs/checklist.md)
+- [Notebook Pipeline Notes](Backend/notebooks/README.md)
+
+## Data And Pipeline
+
+The backend recommendation engine uses the merged dataset and exported model artifacts in `Backend/recommendations/models/`. The pipeline is driven by the notebooks under `Backend/notebooks/` and currently uses profile features such as age, gender, height, weight, BMI, activity level, goal, preference, and medical conditions to select and adjust workout and diet templates.
+

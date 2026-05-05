@@ -7,13 +7,15 @@ import {
   Trophy, 
   User, 
   Calendar, 
-  Settings 
+  Settings,
+  CalendarCheck
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import Dashboard from './pages/Dashboard';
 import ProfileSetup from './pages/ProfileSetup';
 import MyPlan from './pages/MyPlan';
 import Progress from './pages/Progress';
+import DailyCheckIn from './pages/DailyCheckIn';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import SettingsPage from './pages/Settings';
@@ -50,6 +52,7 @@ export default function App() {
         <nav className="flex-1 py-6 flex flex-col gap-2 px-3">
           <NavItem to="/" icon={<Activity />} label="Dashboard" active={location.pathname === '/'} />
           <NavItem to="/profile" icon={<User />} label="Profile Setup" active={location.pathname === '/profile'} />
+          <NavItem to="/check-in" icon={<CalendarCheck />} label="Daily Check-In" active={location.pathname === '/check-in'} />
           <NavItem to="/plan" icon={<Calendar />} label="My Plan" active={location.pathname === '/plan'} />
           <NavItem to="/progress" icon={<Trophy />} label="Progress" active={location.pathname === '/progress'} />
         </nav>
@@ -86,6 +89,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/profile" element={<ProfileSetup />} />
+            <Route path="/check-in" element={<DailyCheckIn />} />
             <Route path="/plan" element={<MyPlan />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/settings" element={<SettingsPage />} />

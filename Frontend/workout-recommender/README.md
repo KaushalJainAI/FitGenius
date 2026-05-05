@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# FitGenius AI Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React + Vite frontend for FitGenius AI. It talks to the Django backend through a token-aware API client and uses an auth context so authenticated requests always carry the current access token.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- lucide-react icons
 
-## React Compiler
+## Runtime Flow
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Login stores the JWT tokens returned by the backend.
+- `AuthContext` loads the current user and exposes `login`, `logout`, `register`, and `refreshUser`.
+- `src/lib/api.ts` attaches the access token to every request and retries once after a refresh if a request gets `401`.
+- Vite proxies `/api/*` to `http://127.0.0.1:8000` in development.
 
-## Expanding the ESLint configuration
+## Pages
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `/login` - sign in
+- `/register` - account creation
+- `/` - dashboard summary
+- `/profile` - stable health profile editor
+- `/check-in` - daily readiness form
+- `/plan` - latest recommendation view
+- `/progress` - progress analytics
+- `/settings` - UI settings
+- `/account` - user account panel
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Data Contract
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+The frontend mirrors the backend data shapes for:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- `HealthProfile`
+- `DailyCheckIn`
+- `Recommendation`
+
+Local fallback storage is used only when the backend is unavailable; the app still prefers backend reads and writes.
+
+## Development
+
+```bash
+cd Frontend/workout-recommender
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Optional environment variable:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
 ```
+
+If `VITE_API_BASE_URL` is not set, the app uses the Vite proxy and calls `/api/*` directly.
+
+## Build
+
+```bash
+npm run build
+```
+
+## Notable Files
+
+- `src/contexts/AuthContext.tsx` - auth state and token-backed API helpers.
+- `src/lib/api.ts` - backend client and refresh handling.
+- `src/pages/ProfileSetup.tsx` - stable profile editor.
+- `src/pages/DailyCheckIn.tsx` - daily readiness form.
+- `src/pages/MyPlan.tsx` - recommendation view.
+- `src/pages/Dashboard.tsx` - summary dashboard.
+
