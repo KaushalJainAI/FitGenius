@@ -39,8 +39,36 @@ export default function Register() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!dateOfBirth) return;
+    const birthDate = new Date(dateOfBirth);
+    if (Number.isNaN(birthDate.getTime())) return;
+    const today = new Date();
+    let nextAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDelta = today.getMonth() - birthDate.getMonth();
+    if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birthDate.getDate())) {
+      nextAge -= 1;
+    }
+    if (nextAge > 0) setAge(nextAge);
+  }, [dateOfBirth]);
+
+  useEffect(() => {
+    if (error === "Passwords do not match." && password && confirmPassword && password === confirmPassword) {
+      setError("");
+    }
+  }, [password, confirmPassword, error]);
+
   const handleNext = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    setError("");
     setStep(2);
   };
 
@@ -246,6 +274,7 @@ export default function Register() {
                   >
                     Continue to Profile Setup <ArrowRight size={18} />
                   </button>
+                  {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground whitespace-pre-line">{error}</div>}
                 </div>
              )}
 

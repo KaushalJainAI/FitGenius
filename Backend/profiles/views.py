@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.db.models import QuerySet
@@ -29,6 +29,11 @@ class HealthProfileViewSet(viewsets.ModelViewSet):
         if self.action in ('create', 'update', 'partial_update'):
             return HealthProfileCreateSerializer
         return HealthProfileSerializer
+
+    def get_permissions(self):
+        if self.action in ('defaults', 'options'):
+            return [AllowAny()]
+        return super().get_permissions()
 
     def create(self, request, *args, **kwargs):
         """Create or update the user's health profile (upsert)."""

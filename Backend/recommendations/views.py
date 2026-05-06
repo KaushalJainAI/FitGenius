@@ -6,8 +6,15 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.throttling import UserRateThrottle
 
-from .models import Recommendation
-from .serializers import RecommendationSerializer, RecommendationListSerializer
+from .models import (
+    Recommendation, RecommendationFeedback, ExerciseFeedback,
+    MealFeedback, UserPreferenceMemory
+)
+from .serializers import (
+    RecommendationSerializer, RecommendationListSerializer,
+    RecommendationFeedbackSerializer, ExerciseFeedbackSerializer,
+    MealFeedbackSerializer, UserPreferenceMemorySerializer
+)
 from .engine import engine
 from profiles.models import HealthProfile, DailyCheckIn
 
@@ -191,3 +198,90 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
         engine.invalidate_cache()
         return Response({'success': True, 'message': 'Engine cache invalidated.'})
+
+    @action(detail=True, methods=['post'], url_path='feedback')
+    def feedback(self, request, pk=None):
+        """Submit plan-level feedback."""
+        recommendation = self.get_object()
+        serializer = RecommendationFeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user, recommendation=recommendation)
+            # Update user preference memory in background or synchronously
+            from .feedback import process_feedback
+            process_feedback(request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='exercise-feedback')
+    def exercise_feedback(self, request, pk=None):
+        """Submit feedback for a specific exercise."""
+        recommendation = self.get_object()
+        serializer = ExerciseFeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user, recommendation=recommendation)
+            from .feedback import process_feedback
+            process_feedback(request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='meal-feedback')
+    def meal_feedback(self, request, pk=None):
+        """Submit feedback for a specific meal."""
+        recommendation = self.get_object()
+        serializer = MealFeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user, recommendation=recommendation)
+            from .feedback import process_feedback
+            process_feedback(request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def metrics(self, request):
+        """Get feedback metrics (admin only or general depending on requirements)."""
+        from django.db.models import Avg
+        from .models import RecommendationFeedback, ExerciseFeedback, MealFeedback
+
+        avg_rating = RecommendationFeedback.objects.aggregate(Avg('rating'))['rating__avg']
+        total_feedback = RecommendationFeedback.objects.count()
+        workout_completion = ExerciseFeedback.objects.filter(completed=True).count()
+        total_exercises = ExerciseFeedback.objects.count()
+        meal_eaten = MealFeedback.objects.filter(eaten=True).count()
+        total_meals = MealFeedback.objects.count()
+
+        workout_rate = (workout_completion / total_exercises) if total_exercises > 0 else 0
+        meal_rate = (meal_eaten / total_meals) if total_meals > 0 else 0
+
+        return Response({
+            'average_plan_rating': round(avg_rating or 0, 2),
+            'workout_completion_rate': round(workout_rate, 2),
+            'meal_completion_rate': round(meal_rate, 2),
+            'feedback_count': total_feedback,
+        })
+
+
+class PreferenceMemoryViewSet(viewsets.ModelViewSet):
+    """
+    Manage User Preference Memory.
+    GET /api/preferences/memory/
+    PATCH /api/preferences/memory/
+    """
+    permission_classes = [IsOwner]
+    serializer_class = UserPreferenceMemorySerializer
+    http_method_names = ['get', 'patch']
+
+    def get_queryset(self):
+        return UserPreferenceMemory.objects.filter(user=self.request.user)
+
+    def get_object(self):
+        obj, _ = UserPreferenceMemory.objects.get_or_create(user=self.request.user)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
+    def list(self, request, *args, **kwargs):
+        # We only have one memory object per user, return it directly
+        return Response(self.get_serializer(self.get_object()).data)
+
+    def update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return super().update(request, *args, **kwargs)

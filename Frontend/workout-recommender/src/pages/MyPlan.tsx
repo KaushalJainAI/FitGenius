@@ -8,6 +8,7 @@ export default function MyPlan() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     api.latestRecommendation()
@@ -25,7 +26,29 @@ export default function MyPlan() {
       <div className="rounded-lg border border-border bg-card p-6">
         <h2 className="text-xl font-bold">No backend plan yet</h2>
         <p className="mt-2 text-muted-foreground">{notice || "Generate a plan after completing your profile."}</p>
-        <Link to="/profile" className="mt-5 inline-flex rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90">Generate plan</Link>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={isGenerating}
+            onClick={async () => {
+              setIsGenerating(true);
+              setNotice("");
+              try {
+                await api.profile();
+                const generated = await api.generateRecommendation();
+                setRecommendation((generated.data ?? generated) as Recommendation);
+              } catch (err) {
+                setNotice(err instanceof Error ? err.message : "Complete your profile before generating a plan.");
+              } finally {
+                setIsGenerating(false);
+              }
+            }}
+            className="inline-flex rounded-lg bg-primary px-5 py-2.5 font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+          >
+            {isGenerating ? "Generating..." : "Generate plan"}
+          </button>
+          <Link to="/profile" className="inline-flex rounded-lg border border-border bg-card px-5 py-2.5 font-medium hover:bg-muted">Edit profile</Link>
+        </div>
       </div>
     );
   }

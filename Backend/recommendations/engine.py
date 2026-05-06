@@ -15,6 +15,13 @@ import logging
 from copy import deepcopy
 import numpy as np
 from collections import defaultdict
+from .safety import (
+    checkin_context_score, apply_medical_safety_filter,
+    apply_context_adjustments, generate_health_notes
+)
+from .models import UserPreferenceMemory
+from .collaborative import find_similar_user_ids, get_exercise_scores_from_similar_users, get_meal_scores_from_similar_users
+from .reranker import rerank_plan_items
 
 logger = logging.getLogger('recommendations')
 
@@ -71,180 +78,6 @@ def profile_to_vector(profile) -> np.ndarray:
         float(EQUIPMENT_MAP.get(profile.available_equipment, 4)),
         float(WORKOUT_TYPE_MAP.get(profile.preferred_workout_type, 4)),
     ], dtype=np.float64)
-
-
-def checkin_context_score(checkin) -> dict:
-    """
-    Derive context flags from a DailyCheckIn for plan adjustments.
-    Returns a dict of boolean flags.
-    """
-    return {
-        'low_energy': checkin.energy_level <= 2 if checkin else False,
-        'high_soreness': checkin.soreness_level >= 4 if checkin else False,
-        'poor_sleep': (checkin.sleep_hours or 8) < 6 if checkin else False,
-        'high_stress': checkin.stress_level >= 4 if checkin else False,
-        'injury_present': checkin.pain_or_injury if checkin else False,
-        'injury_area': (checkin.injury_area or '').lower() if checkin else '',
-        'low_available_minutes': (checkin.available_minutes or 60) < 30 if checkin else False,
-        'low_steps': (checkin.daily_steps or 8000) < 4000 if checkin else False,
-        'high_steps': (checkin.daily_steps or 0) > 15000 if checkin else False,
-        'preferred_low': (checkin.preferred_intensity == 'low') if checkin else False,
-        'preferred_high': (checkin.preferred_intensity == 'high') if checkin else False,
-    }
-
-
-# ==================== MEDICAL SAFETY FILTER ====================
-
-def apply_medical_safety_filter(exercise_plan: list, checkin, profile) -> tuple:
-    """
-    Apply hard medical safety constraints to an exercise plan.
-    Returns (filtered_plan, extra_notes, removed_reasons).
-    """
-    extra_notes = []
-    removed_reasons = []
-
-    for day in exercise_plan:
-        kept_exercises = []
-        for ex in day.get('exercises', []):
-            exclude = False
-            reason = ''
-
-            name_lower = ex.get('name', '').lower()
-            muscle_lower = ex.get('muscle', '').lower()
-
-            # Injury area exclusion
-            if checkin and checkin.pain_or_injury and checkin.injury_area:
-                injury_area = checkin.injury_area.lower()
-                injury_keywords = {
-                    'knee': ['quads', 'hamstrings', 'glutes', 'calves', 'knee', 'leg press', 'squat', 'lunge'],
-                    'shoulder': ['chest', 'shoulders', 'triceps', 'overhead', 'press', 'pull-up'],
-                    'back': ['back', 'deadlift', 'row', 'pull-up', 'lat', 'lats'],
-                    'wrist': ['curl', 'wrist', 'press', 'push-up'],
-                    'ankle': ['calves', 'jump', 'box', 'run'],
-                }
-                keywords = injury_keywords.get(injury_area, [])
-                if keywords and any(k in name_lower or k in muscle_lower for k in keywords):
-                    exclude = True
-                    reason = f"Skipped '{ex['name']}' — targets injured area ({checkin.injury_area})."
-
-            # High BMI: avoid high-impact
-            if profile.bmi and profile.bmi >= 35:
-                high_impact = ['burpee', 'box jump', 'jump squat', 'mountain climber', 'jumping']
-                if any(h in name_lower for h in high_impact):
-                    exclude = True
-                    reason = f"Replaced high-impact '{ex['name']}' with low-impact alternative."
-
-            # Hypertension: avoid heavy isometric holds
-            if profile.hypertension:
-                isometric = ['plank hold', 'wall sit', 'isometric']
-                if any(i in name_lower for i in isometric) and ex.get('reps', '') == '60s':
-                    ex = dict(ex)
-                    ex['reps'] = '30s'
-                    reason = "Shortened plank hold for hypertension."
-
-            if exclude:
-                removed_reasons.append(reason)
-            else:
-                kept_exercises.append(ex)
-
-        day['exercises'] = kept_exercises
-
-    # Add medical notes
-    if profile.diabetes:
-        extra_notes.append(
-            "⚠️ Diabetes: Monitor blood sugar before/after workouts. "
-            "Keep fast-acting carbs available. Prioritize complex carbs."
-        )
-    if profile.hypertension:
-        extra_notes.append(
-            "⚠️ Hypertension: Avoid heavy isometric holds. "
-            "Keep intensity moderate. Monitor BP before/after exercise."
-        )
-    if profile.bmi and profile.bmi >= 35:
-        extra_notes.append(
-            "⚠️ High BMI (≥35): Prefer low-impact exercises (cycling, swimming, walking). "
-            "Avoid high-impact plyometrics. Focus on dietary changes."
-        )
-
-    chronic = (profile.chronic_disease or '').lower()
-    if 'heart' in chronic:
-        extra_notes.append(
-            "⚠️ Heart condition flagged: Consult your cardiologist before starting. "
-            "Begin with zone 2 steady-state cardio. Avoid HIIT initially."
-        )
-    if profile.smoking_habit:
-        extra_notes.append(
-            "⚠️ Smoking detected: Cardiovascular capacity may be reduced. "
-            "Start with lower intensity and progress gradually."
-        )
-
-    return exercise_plan, extra_notes, removed_reasons
-
-
-# ==================== CONTEXT-AWARE ADJUSTMENTS ====================
-
-def apply_context_adjustments(exercise_plan: list, checkin, profile) -> list:
-    """
-    Adjust workout plan based on daily check-in context flags.
-    Returns adjusted exercise plan.
-    """
-    if not checkin:
-        return exercise_plan
-
-    ctx = checkin_context_score(checkin)
-    adjusted_plan = []
-
-    for day in exercise_plan:
-        day_copy = dict(day)
-        exercises = []
-
-        for ex in day.get('exercises', []):
-            ex_copy = dict(ex)
-
-            # Low energy / poor sleep: reduce sets and reps
-            if ctx['low_energy'] or ctx['poor_sleep']:
-                reps_val = ex_copy.get('reps', '')
-                if isinstance(reps_val, str) and '-' in reps_val:
-                    parts = reps_val.split('-')
-                    try:
-                        low = max(5, int(parts[0]) - 3)
-                        high = max(8, int(parts[1]) - 3)
-                        ex_copy['reps'] = f"{low}-{high}"
-                    except ValueError:
-                        pass
-                sets_val = ex_copy.get('sets', 3)
-                if isinstance(sets_val, int) and sets_val > 2:
-                    ex_copy['sets'] = sets_val - 1
-
-            # High soreness: switch to mobility/recovery
-            if ctx['high_soreness']:
-                ex_copy['reps'] = '12'
-                ex_copy['sets'] = 2
-                # Add note to focus area
-                if 'focus' in day_copy:
-                    day_copy['focus'] = 'Recovery / ' + day_copy['focus']
-
-            exercises.append(ex_copy)
-
-        day_copy['exercises'] = exercises
-
-        # If low available minutes, return only the first day/shorter variant
-        if ctx['low_available_minutes'] and len(adjusted_plan) == 0:
-            # Keep only the first day's exercises, reduce volume
-            short_day = dict(day_copy)
-            short_day['focus'] = 'Quick Session (Short Workout)'
-            short_exercises = []
-            for ex in short_day['exercises'][:4]:  # max 4 exercises
-                short_ex = dict(ex)
-                short_ex['sets'] = min(2, short_ex.get('sets', 3))
-                short_ex['reps'] = '10'
-                short_exercises.append(short_ex)
-            short_day['exercises'] = short_exercises
-            return [short_day]
-
-        adjusted_plan.append(day_copy)
-
-    return adjusted_plan
 
 
 # ==================== TOP-K AGGREGATION ====================
@@ -702,9 +535,14 @@ def estimate_daily_calories(profile) -> dict:
     Estimate daily calorie needs using Mifflin-St Jeor equation.
     Returns target calories and macro split.
     """
-    weight = profile.weight
-    height = profile.height
-    age = profile.age
+    weight = float(getattr(profile, 'weight', 0) or 0)
+    height = float(getattr(profile, 'height', 0) or 0)
+    age = int(getattr(profile, 'age', 0) or 0)
+
+    if weight <= 0 or height <= 0 or age <= 0:
+        weight = weight if weight > 0 else 68
+        height = height if height > 0 else 170
+        age = age if age > 0 else 25
 
     # Mifflin-St Jeor BMR
     if profile.gender == 'male':
@@ -752,54 +590,6 @@ def estimate_daily_calories(profile) -> dict:
     }
 
 
-# ==================== MEDICAL RULES ====================
-
-def generate_health_notes(profile) -> str:
-    """Generate health-aware notes based on medical conditions."""
-    notes = []
-
-    if profile.hypertension:
-        notes.append(
-            "⚠️ Hypertension detected: Avoid heavy isometric holds and Valsalva maneuver. "
-            "Keep intensity moderate. Monitor blood pressure before/after workouts. "
-            "Reduce sodium intake in diet plan."
-        )
-    if profile.diabetes:
-        notes.append(
-            "⚠️ Diabetes detected: Monitor blood sugar before and after exercise. "
-            "Keep a fast-acting carb source available during workouts. "
-            "Prefer complex carbs over simple sugars in meals."
-        )
-    if profile.cholesterol and profile.cholesterol > 200:
-        notes.append(
-            "⚠️ Elevated cholesterol: Prioritize cardio sessions. "
-            "Reduce saturated fat intake. Include omega-3 rich foods (salmon, walnuts, flaxseed)."
-        )
-    if profile.smoking_habit:
-        notes.append(
-            "⚠️ Smoking habit: Expect reduced cardiovascular capacity. "
-            "Start with lower intensity and gradually increase. "
-            "Consider breathing exercises as part of warm-up."
-        )
-    if profile.bmi and profile.bmi >= 35:
-        notes.append(
-            "⚠️ High BMI (≥35): Start with low-impact exercises (swimming, cycling, walking). "
-            "Avoid high-impact jumping movements. Focus on dietary changes first."
-        )
-
-    chronic = (profile.chronic_disease or '').lower()
-    if 'heart' in chronic:
-        notes.append(
-            "⚠️ Heart disease flagged: Consult cardiologist before starting any program. "
-            "Avoid high-intensity interval training initially. Keep heart rate in zone 2."
-        )
-
-    if not notes:
-        notes.append("✅ No medical contraindications detected. Standard programming applies.")
-
-    return '\n\n'.join(notes)
-
-
 # ==================== RECOMMENDATION ENGINE ====================
 
 class RecommendationEngine:
@@ -841,11 +631,11 @@ class RecommendationEngine:
         # 3. Medical rules (static health notes)
         health_notes = generate_health_notes(profile)
 
-        # 4. Top-K aggregation using KNN
+        # 4. Top-K aggregation using KNN (Dataset-based Content Filtering)
         diet_votes, exercise_votes, similar_count, avg_similarity, knn_explanation = \
             knn_top_k_aggregate(profile, k=K_NEIGHBORS)
 
-        algorithm_used = 'hybrid' if similar_count > 0 else 'content_based'
+        algorithm_used = 'hybrid'
 
         # 5. Ranked selection from aggregated votes
         top_diets, top_exercises = select_top_ranked(diet_votes, exercise_votes, top_n=3)
@@ -867,22 +657,47 @@ class RecommendationEngine:
             'chronic_disease': profile.chronic_disease,
         }
 
-        # 7. Apply medical safety filter
-        exercise_plan, safety_notes, removal_reasons = apply_medical_safety_filter(
-            exercise_plan, checkin, profile
+        # ==========================================================
+        # FEEDBACK AND COLLABORATIVE FILTERING LAYER
+        # ==========================================================
+        # Load user preference memory
+        user_memory, _ = UserPreferenceMemory.objects.get_or_create(user=profile.user)
+        
+        # Load similar users for collaborative filtering
+        real_similar_users = find_similar_user_ids(profile)
+        cf_exercise_scores = get_exercise_scores_from_similar_users(real_similar_users)
+        cf_meal_scores = get_meal_scores_from_similar_users(real_similar_users)
+        
+        # Re-ranker layer
+        base_plan = {
+            'exercise_plan': exercise_plan,
+            'diet_plan': diet_plan,
+        }
+        
+        reranked_plan, rerank_notes = rerank_plan_items(
+            base_plan, cf_exercise_scores, cf_meal_scores, user_memory
         )
+        
+        exercise_plan = reranked_plan['exercise_plan']
+        diet_plan = reranked_plan['diet_plan']
+        # ==========================================================
 
-        # 8. Apply context-aware adjustments from check-in
+        # 7. Apply context-aware adjustments from check-in
         if checkin:
             exercise_plan = apply_context_adjustments(exercise_plan, checkin, profile)
 
-        # 9. Adjust for experience level
+        # 8. Adjust for experience level
         exercise_plan = self._adjust_for_experience(exercise_plan, profile.experience_level)
 
-        # 10. Adjust for days per week
+        # 9. Adjust for days per week
         days_per_week = profile.exercise_frequency or 3
         if len(exercise_plan) > days_per_week:
             exercise_plan = exercise_plan[:days_per_week]
+
+        # 10. Apply medical safety filter (Must override everything)
+        exercise_plan, safety_notes, removal_reasons = apply_medical_safety_filter(
+            exercise_plan, checkin, profile
+        )
 
         # 11. RAG & LLM Insights
         rag_data = self._generate_rag_insights(profile, workout_split, diet_plan, calorie_data)
@@ -901,6 +716,10 @@ class RecommendationEngine:
             top_diets=top_diets,
             top_exercises=top_exercises,
         )
+        
+        # Append reranker explanations
+        if rerank_notes:
+            explanation += "\n\n💡 Personalized Adjustments:\n" + "\n".join([f"• {note}" for note in rerank_notes])
 
         return {
             'status': 'completed',

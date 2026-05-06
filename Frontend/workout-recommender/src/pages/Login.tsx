@@ -50,8 +50,8 @@ export default function Login() {
               <input 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                type="text" 
-                placeholder="sarah or sarah@example.com" 
+                type="email" 
+                placeholder="sarah@example.com" 
                 required
                 className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
               />
@@ -87,7 +87,7 @@ export default function Login() {
                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
                <>
-                 Signing In <ArrowRight size={18} />
+                 Sign In <ArrowRight size={18} />
                </>
             )}
           </button>

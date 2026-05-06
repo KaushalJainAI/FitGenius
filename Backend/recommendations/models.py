@@ -198,3 +198,112 @@ class DatasetEntry(models.Model):
 
     def __str__(self):
         return f"{self.source} #{self.id} — Age {self.age}, {self.fitness_goal}"
+
+
+# ==================== FEEDBACK MODELS ====================
+
+class RecommendationFeedback(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='recommendation_feedbacks'
+    )
+    recommendation = models.ForeignKey(
+        Recommendation, on_delete=models.CASCADE, related_name='feedbacks'
+    )
+
+    rating = models.PositiveSmallIntegerField()  # 1 to 5
+    difficulty_rating = models.PositiveSmallIntegerField(null=True, blank=True)  # 1 too easy, 5 too hard
+    satisfaction_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    completed = models.BooleanField(default=False)
+
+    liked_workout = models.BooleanField(null=True, blank=True)
+    liked_diet = models.BooleanField(null=True, blank=True)
+
+    feedback_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Recommendation Feedback'
+        verbose_name_plural = 'Recommendation Feedbacks'
+
+    def __str__(self):
+        return f"Feedback by {self.user.email} - Rating: {self.rating}"
+
+
+class ExerciseFeedback(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='exercise_feedbacks'
+    )
+    recommendation = models.ForeignKey(
+        Recommendation, on_delete=models.CASCADE, related_name='exercise_feedbacks'
+    )
+
+    exercise_name = models.CharField(max_length=255)
+    rating = models.PositiveSmallIntegerField(null=True, blank=True)  # 1 to 5
+    completed = models.BooleanField(default=False)
+    skipped = models.BooleanField(default=False)
+
+    too_easy = models.BooleanField(default=False)
+    too_hard = models.BooleanField(default=False)
+    pain_reported = models.BooleanField(default=False)
+    pain_area = models.CharField(max_length=100, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Exercise Feedback'
+        verbose_name_plural = 'Exercise Feedbacks'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.exercise_name}"
+
+
+class MealFeedback(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='meal_feedbacks'
+    )
+    recommendation = models.ForeignKey(
+        Recommendation, on_delete=models.CASCADE, related_name='meal_feedbacks'
+    )
+
+    meal_name = models.CharField(max_length=255)
+    meal_type = models.CharField(max_length=50)  # breakfast/lunch/dinner/snack
+
+    rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    eaten = models.BooleanField(default=False)
+    skipped = models.BooleanField(default=False)
+
+    too_expensive = models.BooleanField(default=False)
+    hard_to_prepare = models.BooleanField(default=False)
+    disliked_ingredient = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Meal Feedback'
+        verbose_name_plural = 'Meal Feedbacks'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.meal_name}"
+
+
+class UserPreferenceMemory(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='preference_memory'
+    )
+
+    disliked_exercises = models.JSONField(default=list, blank=True)
+    preferred_exercises = models.JSONField(default=list, blank=True)
+    disliked_foods = models.JSONField(default=list, blank=True)
+    preferred_foods = models.JSONField(default=list, blank=True)
+
+    preferred_workout_duration = models.IntegerField(null=True, blank=True)
+    preferred_intensity = models.CharField(max_length=50, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'User Preference Memory'
+        verbose_name_plural = 'User Preference Memories'
+
+    def __str__(self):
+        return f"Preferences for {self.user.email}"

@@ -31,6 +31,8 @@ staticfiles/
 Backend/recommendations/models/*.pkl
 Backend/recommendations/models/*.pkl.bz2
 recommendations/models/*.pkl
+Backend/models/
+Backend/models/chat_embeddings/
 
 # Notebook data and outputs
 Backend/notebooks/data/

@@ -60,16 +60,21 @@ Stores frequently changing readiness data:
 - workout completion, injury, available minutes, preferred intensity
 - optional notes
 
-### Recommendation
+### Recommendation & Feedback
 
-Stores the generated plan plus the evidence used to create it:
+The system uses a feedback-loop model comprising:
 
-- status, confidence, algorithm used
-- workout split, exercise plan, workout days per week
-- diet plan, calories, macros
-- health notes, RAG/LLM explanation, rag chunks
-- profile and check-in snapshots
-- similarity count and similarity score
+1. **Recommendation**: Stores the generated plan plus the evidence used to create it:
+   - status, confidence, algorithm used
+   - workout split, exercise plan, workout days per week
+   - diet plan, calories, macros
+   - health notes, RAG/LLM explanation, rag chunks
+   - profile and check-in snapshots
+   - similarity count and similarity score
+
+2. **Feedback Models**: `RecommendationFeedback`, `ExerciseFeedback`, `MealFeedback` store explicit user interactions (`[Done]`, `[Skipped]`, `[Too Hard]`, ratings).
+
+3. **UserPreferenceMemory**: A persistent state of learned user likes/dislikes (e.g. `disliked_exercises`, `preferred_foods`) derived from aggregated feedback.
 
 ## Recommendation Request Flow
 
@@ -79,16 +84,22 @@ graph TD
     B --> C[Django viewset]
     C --> D[Load HealthProfile]
     C --> E[Load latest DailyCheckIn]
-    D --> F[Recommendation engine]
+    D --> F[1. Content Baseline]
     E --> F
-    F --> G[KNN similarity retrieval]
-    F --> H[Medical safety filters]
-    F --> I[Context-aware adjustments]
-    F --> J[Explanation builder]
-    J --> K[Save Recommendation snapshot]
-    K --> L[Return saved recommendation JSON]
-    L --> M[Frontend plan/dashboard]
+    F --> G[2. Collaborative Filtering KNN]
+    F --> H[3. Personal Preference Memory]
+    G --> I[Reranker]
+    H --> I
+    I --> J[Medical Safety Filters]
+    J --> K[Context-aware Adjustments]
+    K --> L[Explanation Builder]
+    L --> M[Save Recommendation snapshot]
+    M --> N[Return saved recommendation JSON]
+    N --> O[Frontend plan/dashboard]
+    O -.->|User Feedback| P[Update Preference Memory]
 ```
+
+> **Note**: For an in-depth breakdown of the Hybrid Recommender System, the mathematical formulas, and the sub-models used, please see [`docs/subsystems/recommendation_engine.md`](subsystems/recommendation_engine.md).
 
 ## API Surface
 
@@ -111,12 +122,17 @@ graph TD
 - `GET /api/checkins/latest/`
 - `GET /api/checkins/history/`
 
-### Recommendations
+### Recommendations & Feedback
 
 - `POST /api/recommendations/generate/`
 - `GET /api/recommendations/latest/`
 - `GET /api/recommendations/history/`
 - `GET /api/recommendations/<id>/`
+- `POST /api/recommendations/<id>/feedback/`
+- `POST /api/recommendations/<id>/exercise-feedback/`
+- `POST /api/recommendations/<id>/meal-feedback/`
+- `GET /api/recommendations/metrics/`
+- `GET/PATCH /api/preferences/memory/`
 
 ## Frontend Data Binding
 

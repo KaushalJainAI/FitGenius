@@ -21,7 +21,7 @@ from users.views import (
     TwoFactorStatusView, TwoFactorEnableView, TwoFactorDisableView, AccountDeleteView,
 )
 from profiles.views import HealthProfileViewSet, DailyCheckInViewSet
-from recommendations.views import RecommendationViewSet
+from recommendations.views import RecommendationViewSet, PreferenceMemoryViewSet
 from billing.views import SubscriptionView, StartProTrialView, CancelSubscriptionView, BillingPlansView
 from fitness_backend.dashboard import DashboardSummaryView, AnalyticsSummaryView
 
@@ -29,6 +29,7 @@ router = DefaultRouter()
 router.register(r'profiles', HealthProfileViewSet, basename='profiles')
 router.register(r'checkins', DailyCheckInViewSet, basename='checkins')
 router.register(r'recommendations', RecommendationViewSet, basename='recommendations')
+router.register(r'preferences/memory', PreferenceMemoryViewSet, basename='preference-memory')
 
 
 urlpatterns = [

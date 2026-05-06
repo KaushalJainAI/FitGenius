@@ -228,6 +228,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'chat': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
@@ -245,4 +250,10 @@ DATASET_DIR = BASE_DIR / 'data'
 # NVIDIA/OpenAI-compatible LLM settings for help chat
 NVIDIA_API_KEY = config('NVIDIA_API_KEY', default='')
 NVIDIA_API_URL = config('NVIDIA_API_URL', default='https://integrate.api.nvidia.com/v1/chat/completions')
-NVIDIA_LLM_MODEL = config('NVIDIA_LLM_MODEL', default='meta/llama-3.1-70b-instruct')
+NVIDIA_LLM_MODEL = config('NVIDIA_LLM_MODEL', default='nvidia/nemotron-3-super-120b-a12b')
+
+# Local encoder used for semantic RAG retrieval in help chat/document snippets.
+CHAT_EMBEDDING_MODEL = config('CHAT_EMBEDDING_MODEL', default='Qwen/Qwen3-Embedding-0.6B')
+CHAT_EMBEDDING_CACHE_DIR = Path(config('CHAT_EMBEDDING_CACHE_DIR', default=str(BASE_DIR / 'models' / 'chat_embeddings')))
+CHAT_EMBEDDING_DEVICE = config('CHAT_EMBEDDING_DEVICE', default='')
+CHAT_EMBEDDING_BATCH_SIZE = config('CHAT_EMBEDDING_BATCH_SIZE', default=8, cast=int)

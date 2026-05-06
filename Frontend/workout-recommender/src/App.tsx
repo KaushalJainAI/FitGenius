@@ -137,7 +137,7 @@ export default function App() {
         </div>
       </main>
 
-      <div className="fixed bottom-4 right-8 z-[110]">
+      <div className={cn("fixed bottom-4 z-[110] transition-all duration-300", isHelpOpen ? "pointer-events-none translate-y-4 opacity-0 right-10" : "right-8")}>
         <button
           onClick={() => setIsHelpOpen((value) => !value)}
           className={cn(
@@ -154,7 +154,7 @@ export default function App() {
 
       <aside
         className={cn(
-          "fixed right-0 top-0 bottom-0 z-[100] w-full max-w-[440px] bg-card border-l border-border shadow-2xl transition-all duration-300 ease-out p-4",
+          "fixed right-0 top-0 bottom-0 z-[100] w-full max-w-[720px] bg-card border-l border-border shadow-2xl transition-all duration-300 ease-out p-4 overflow-hidden",
           isHelpOpen ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"
         )}
       >

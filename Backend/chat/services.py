@@ -1,4 +1,6 @@
 import json
+import logging
+import math
 import re
 import urllib.error
 import urllib.parse
@@ -8,6 +10,7 @@ from pathlib import Path
 from django.conf import settings
 
 
+logger = logging.getLogger("chat")
 TOKEN_RE = re.compile(r"[a-zA-Z0-9_]+")
 STOPWORDS = {
     "about", "above", "after", "again", "against", "being", "between", "could", "during",
@@ -152,6 +155,71 @@ FALLBACK_CHUNKS = [
 ]
 
 
+class ChatEmbeddingService:
+    """Lazy singleton for the chat RAG document encoder."""
+
+    model = None
+    model_name = None
+    load_attempted = False
+
+    @classmethod
+    def load(cls):
+        if cls.model is not None:
+            return cls.model
+        if cls.load_attempted:
+            return None
+
+        cls.load_attempted = True
+        cls.model_name = getattr(settings, "CHAT_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            device = getattr(settings, "CHAT_EMBEDDING_DEVICE", None) or None
+            cache_folder = getattr(settings, "CHAT_EMBEDDING_CACHE_DIR", None)
+            kwargs = {"trust_remote_code": True}
+            if cache_folder:
+                kwargs["cache_folder"] = str(cache_folder)
+            if device:
+                kwargs["device"] = device
+            try:
+                cls.model = SentenceTransformer(cls.model_name, local_files_only=True, **kwargs)
+            except Exception:
+                logger.info("Chat RAG encoder not found locally; downloading once: %s", cls.model_name)
+                cls.model = SentenceTransformer(cls.model_name, **kwargs)
+            logger.info(
+                "Successfully loaded chat RAG encoder into memory: %s%s",
+                cls.model_name,
+                f" from cache {cache_folder}" if cache_folder else "",
+            )
+        except Exception as exc:
+            cls.model = None
+            logger.warning("Failed to load chat RAG encoder %s: %s", cls.model_name, exc)
+        return cls.model
+
+    @classmethod
+    def is_available(cls):
+        return cls.model is not None or cls.load() is not None
+
+    @classmethod
+    def encode(cls, texts):
+        model = cls.load()
+        if model is None:
+            return None
+
+        try:
+            vectors = model.encode(
+                texts,
+                batch_size=getattr(settings, "CHAT_EMBEDDING_BATCH_SIZE", 8),
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
+            return vectors.tolist() if hasattr(vectors, "tolist") else vectors
+        except Exception as exc:
+            logger.warning("Chat RAG encoder failed while embedding text: %s", exc)
+            return None
+
+
 def build_profile_context(profile, latest_checkin):
     parts = []
 
@@ -224,6 +292,9 @@ def retrieve_chat_context(question, profile_context, document_text="", limit=8):
 
 def retrieve_knowledge_chunks(query, limit=8):
     chunks = load_chunks()
+    semantic_chunks = semantic_rerank_chunks(query, chunks, limit=limit)
+    if semantic_chunks:
+        return semantic_chunks
     return rerank_chunks(query, chunks, limit=limit)
 
 
@@ -260,7 +331,11 @@ def retrieve_document_snippets(question, document_text, limit=4):
     if not document_text:
         return []
     chunks = _chunk_text(document_text)
-    return rerank_chunks(question, [{"chunk_text": chunk} for chunk in chunks], limit=limit)
+    wrapped_chunks = [{"chunk_text": chunk} for chunk in chunks]
+    semantic_chunks = semantic_rerank_chunks(question, wrapped_chunks, limit=limit)
+    if semantic_chunks:
+        return semantic_chunks
+    return rerank_chunks(question, wrapped_chunks, limit=limit)
 
 
 def search_official_sources(query, max_results=3):
@@ -353,12 +428,17 @@ def call_nvidia_chat(message, profile_context, snippets):
         return _fallback_response(message, snippets)
 
     system_prompt = (
-        "You are FitGenius Help Chat, a concise health and fitness RAG assistant. "
-        "Use only the user profile, latest health status, and retrieved official-source context. "
-        "Prefer Indian dietary guidance when relevant. Cite source names in the answer. "
-        "Do not diagnose disease, prescribe medication, or give unsafe plans. "
-        "Escalate chest pain, fainting, severe dizziness, suspected serious injury, pregnancy complications, "
-        "eating disorder risk, kidney disease diet restrictions, or diabetes medication questions to a clinician."
+        "You are the FitGenius chat agent for the workout and diet recommendation app. "
+        "Your job is to help the user understand and safely act on their fitness plan, nutrition plan, "
+        "daily check-in, recovery needs, goals, and uploaded notes. "
+        "Use the user profile, latest health status, and retrieved RAG context as the source of truth. "
+        "Give concise, practical answers with clear next steps, and cite source names when retrieved context is used. "
+        "Format answers for a chat UI: short paragraphs, compact bullet lists, bold labels for sections, and no raw citation markers "
+        "such as [1] or line references. "
+        "Personalize advice to the user's goal, equipment, dietary preference, injuries, and medical flags when present. "
+        "Do not diagnose disease, prescribe medication, promise outcomes, or give unsafe extreme diet/exercise plans. "
+        "For chest pain, fainting, severe dizziness, suspected serious injury, pregnancy complications, eating disorder risk, "
+        "kidney disease diet restrictions, diabetes medication questions, or blood glucose emergencies, advise the user to seek qualified medical care."
     )
     context = profile_context
     if snippets:
@@ -395,6 +475,30 @@ def call_nvidia_chat(message, profile_context, snippets):
         return data["choices"][0]["message"]["content"].strip()
     except (KeyError, IndexError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         return _fallback_response(message, snippets, error=str(exc))
+
+
+def preload_chat_rag_encoder():
+    ChatEmbeddingService.load()
+
+
+def semantic_rerank_chunks(query, chunks, limit=8):
+    if not chunks or not ChatEmbeddingService.is_available():
+        return []
+
+    texts = [_chunk_body(chunk) for chunk in chunks]
+    vectors = ChatEmbeddingService.encode([query, *texts])
+    if not vectors or len(vectors) != len(chunks) + 1:
+        return []
+
+    query_vector = vectors[0]
+    scored = []
+    for index, (chunk, vector) in enumerate(zip(chunks, vectors[1:])):
+        score = _cosine_similarity(query_vector, vector)
+        if chunk.get("topic") == "safety" and _has_safety_terms(query):
+            score += 0.05
+        scored.append((score, index, chunk))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return [chunk for score, _, chunk in scored[:limit] if score > 0]
 
 
 def rerank_chunks(query, chunks, limit=8):
@@ -568,6 +672,15 @@ def _chunk_body(chunk):
     return " ".join(str(chunk.get(key, "")) for key in (
         "source", "organization", "topic", "subtopic", "population", "condition", "country", "chunk_text"
     ))
+
+
+def _cosine_similarity(left, right):
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(a * a for a in left))
+    right_norm = math.sqrt(sum(b * b for b in right))
+    if not left_norm or not right_norm:
+        return 0
+    return dot / (left_norm * right_norm)
 
 
 def _clean_text(text):

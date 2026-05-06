@@ -37,9 +37,44 @@ export type BillingPlan = {
 
 export type HelpChatResponse = {
   answer: string;
-  sources: Array<{ type: string; label: string; text: string }>;
+  sources: Array<{
+    type: string;
+    label: string;
+    text: string;
+    url?: string;
+    organization?: string;
+    subtopic?: string;
+    population?: string;
+    condition?: string;
+  }>;
+  tool_calls: Array<{ name: string; status: string; detail: string }>;
   used_profile: boolean;
   used_latest_checkin: boolean;
+  conversation?: ChatConversation;
+  user_message?: ChatMessage;
+  ai_response?: ChatMessage;
+};
+
+export type ChatMessage = {
+  id: number;
+  role: "user" | "assistant" | "system";
+  content: string;
+  message_type: string;
+  metadata: Record<string, unknown>;
+  sources: HelpChatResponse["sources"];
+  tool_calls: HelpChatResponse["tool_calls"];
+  created_at: string;
+};
+
+export type ChatConversation = {
+  id: string;
+  title: string;
+  intent: string;
+  system_prompt?: string;
+  total_tokens_used?: number;
+  created_at: string;
+  updated_at: string;
+  messages?: ChatMessage[];
 };
 
 export type UserPreferences = {
@@ -269,6 +304,17 @@ export const api = {
     body: JSON.stringify({ note }),
   }),
   helpChat: (payload: { message: string; document_text?: string }) => apiFetch<HelpChatResponse>("/chat/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  chatConversations: () => apiFetch<ChatConversation[]>("/chat/conversations/"),
+  createChatConversation: (payload: Partial<ChatConversation> = {}) => apiFetch<ChatConversation>("/chat/conversations/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  chatConversation: (id: string) => apiFetch<ChatConversation>(`/chat/conversations/${id}/`),
+  deleteChatConversation: (id: string) => apiFetch(`/chat/conversations/${id}/`, { method: "DELETE" }),
+  sendChatMessage: (id: string, payload: { message: string; document_text?: string }) => apiFetch<HelpChatResponse>(`/chat/conversations/${id}/message/`, {
     method: "POST",
     body: JSON.stringify(payload),
   }),

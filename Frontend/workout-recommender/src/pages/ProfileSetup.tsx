@@ -28,6 +28,7 @@ const fallbackOptions = {
 export default function ProfileSetup() {
   const [profile, setProfile] = useState<HealthProfile>(getProfile);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [goals, setGoals] = useState<string[][]>(fallbackGoals);
@@ -160,9 +161,11 @@ export default function ProfileSetup() {
         </section>
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="sticky bottom-0 z-20 -mx-6 md:-mx-10 border-t border-border bg-background/90 px-6 py-4 backdrop-blur md:px-10">
+        <div className="flex justify-end gap-3">
         <button type="button" onClick={async () => {
           setNotice("");
+          setIsSaving(true);
           try {
             const saved = await api.saveProfile(profile as unknown as Record<string, unknown>) as Partial<HealthProfile>;
             const next = { ...profile, ...saved };
@@ -171,13 +174,16 @@ export default function ProfileSetup() {
             setNotice("Profile saved to the backend.");
           } catch (err) {
             setNotice(err instanceof Error ? err.message : "Backend save failed. Please try again.");
+          } finally {
+            setIsSaving(false);
           }
-        }} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted">
-          <Save size={18} /> Save Profile
+        }} disabled={isSaving || isGenerating} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold hover:bg-muted disabled:opacity-70">
+          <Save size={18} /> {isSaving ? "Saving..." : "Save Profile"}
         </button>
         <button disabled={isGenerating} className="inline-flex items-center gap-2 rounded-lg bg-gradient-hero px-6 py-3 text-sm font-semibold text-white shadow-elegant disabled:opacity-70">
-          <Sparkles size={18} /> {isGenerating ? "Generating..." : "Generate Plan"}
+          {isGenerating ? <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <Sparkles size={18} />} {isGenerating ? "Generating Plan..." : "Generate Plan"}
         </button>
+        </div>
       </div>
     </form>
   );

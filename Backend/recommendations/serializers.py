@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .models import Recommendation, DatasetEntry
+from .models import (
+    Recommendation, DatasetEntry,
+    RecommendationFeedback, ExerciseFeedback,
+    MealFeedback, UserPreferenceMemory
+)
 
 
 class RecommendationSerializer(serializers.ModelSerializer):
@@ -64,3 +68,32 @@ class DatasetEntrySerializer(serializers.ModelSerializer):
         model = DatasetEntry
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
+
+
+class RecommendationFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RecommendationFeedback
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'recommendation', 'created_at']
+
+
+class ExerciseFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExerciseFeedback
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'recommendation', 'created_at']
+
+
+class MealFeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealFeedback
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'recommendation', 'created_at']
+
+
+class UserPreferenceMemorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreferenceMemory
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'updated_at']
+
