@@ -17,10 +17,12 @@ import numpy as np
 from collections import defaultdict
 from .safety import (
     checkin_context_score, apply_medical_safety_filter,
-    apply_context_adjustments, generate_health_notes
+    apply_context_adjustments, generate_health_notes,
+    assess_medical_safety, build_safety_only_recommendation,
 )
 from .models import UserPreferenceMemory
 from .collaborative import find_similar_user_ids, get_exercise_scores_from_similar_users, get_meal_scores_from_similar_users
+from .collaborative import get_synthetic_cf_scores, merge_cf_scores
 from .reranker import rerank_plan_items
 
 logger = logging.getLogger('recommendations')
@@ -612,6 +614,10 @@ class RecommendationEngine:
         Generate a full recommendation for a given HealthProfile and optional DailyCheckIn.
         Returns a dict matching the Recommendation model fields.
         """
+        safety_assessment = assess_medical_safety(profile=profile, checkin=checkin)
+        if safety_assessment["blocks_plan"]:
+            return build_safety_only_recommendation(profile, checkin, safety_assessment)
+
         goal = profile.fitness_goal or 'maintenance'
         equipment = profile.available_equipment or 'full_gym'
 
@@ -665,8 +671,17 @@ class RecommendationEngine:
         
         # Load similar users for collaborative filtering
         real_similar_users = find_similar_user_ids(profile)
-        cf_exercise_scores = get_exercise_scores_from_similar_users(real_similar_users)
-        cf_meal_scores = get_meal_scores_from_similar_users(real_similar_users)
+        real_exercise_scores = get_exercise_scores_from_similar_users(real_similar_users)
+        real_meal_scores = get_meal_scores_from_similar_users(real_similar_users)
+        synthetic_exercise_scores, synthetic_meal_scores = get_synthetic_cf_scores(profile)
+        cf_exercise_scores = merge_cf_scores(
+            (1.0, real_exercise_scores),
+            (0.35, synthetic_exercise_scores),
+        )
+        cf_meal_scores = merge_cf_scores(
+            (1.0, real_meal_scores),
+            (0.35, synthetic_meal_scores),
+        )
         
         # Re-ranker layer
         base_plan = {
@@ -698,6 +713,9 @@ class RecommendationEngine:
         exercise_plan, safety_notes, removal_reasons = apply_medical_safety_filter(
             exercise_plan, checkin, profile
         )
+        if safety_assessment["level"] == "caution":
+            safety_notes.append(safety_assessment["message"])
+            health_notes = f"{health_notes}\n\n{safety_assessment['message']}"
 
         # 11. RAG & LLM Insights
         rag_data = self._generate_rag_insights(profile, workout_split, diet_plan, calorie_data)

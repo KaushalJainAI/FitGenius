@@ -23,6 +23,9 @@ htmlcov/
 # Django / backend runtime files
 db.sqlite3
 *.sqlite3
+Backend/data/
+Backend/data/*.csv
+Backend/data/*.csv.gz
 media/
 Backend/media/chat_knowledge_base/
 staticfiles/

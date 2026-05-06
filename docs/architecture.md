@@ -13,6 +13,7 @@ FitGenius AI is a full-stack fitness and diet recommender with a Django REST API
   - Merge the source CSVs into a normalized recommendation corpus.
   - Train and export the similarity artifacts used by the recommendation engine.
   - Provide the reference plan pool used for similarity-weighted aggregation.
+  - Provide optional synthetic collaborative interaction priors from `Backend/data/fitgenius_cf_synthetic_interactions.csv.gz`. This file is generated telemetry-like data for cold-start ranking, not real clinical/user evidence.
 
 ### 2. Backend API Layer
 
@@ -21,6 +22,8 @@ FitGenius AI is a full-stack fitness and diet recommender with a Django REST API
   - `users` - JWT auth and user profile endpoints.
   - `profiles` - `HealthProfile` and `DailyCheckIn` storage.
   - `recommendations` - recommendation generation, retrieval, and persistence.
+  - `chat` - persistent profile-aware RAG help chat.
+  - `recommendations/safety.py` - shared medical safety triage for recommendations and chat.
 
 ### 3. Frontend Layer
 
@@ -100,6 +103,7 @@ graph TD
 ```
 
 > **Note**: For an in-depth breakdown of the Hybrid Recommender System, the mathematical formulas, and the sub-models used, please see [`docs/subsystems/recommendation_engine.md`](subsystems/recommendation_engine.md).
+> **Safety**: FitGenius applies deterministic medical safety triage before personalized plans or chat answers are returned. See [`docs/subsystems/medical_safety.md`](subsystems/medical_safety.md).
 
 ## API Surface
 
@@ -154,4 +158,3 @@ The primary screens map to backend concepts:
 - `Frontend/workout-recommender/vite.config.ts` proxies `/api` to the Django backend during local development.
 - The app prefers backend data, but keeps a local cache so the UI can still render if the backend is temporarily unavailable.
 - Recommendation history and progress are intentionally lightweight in the frontend and can be expanded without changing the core API contract.
-

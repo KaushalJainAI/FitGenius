@@ -3,6 +3,165 @@ Safety and Context module for the recommendation engine.
 Handles medical safety filters, health notes, and daily context adjustments.
 """
 
+import re
+
+
+EMERGENCY_MESSAGE = (
+    "I cannot safely generate a workout or diet recommendation for this situation. "
+    "Your message or health status includes possible red-flag symptoms. Please seek urgent medical care "
+    "or contact a qualified clinician before exercising or changing your diet."
+)
+
+CLINICIAN_REVIEW_MESSAGE = (
+    "I cannot safely generate a personalized workout or diet plan for this situation without clinician review. "
+    "This may require individualized medical guidance from a physician, registered dietitian, or physiotherapist. "
+    "I can still provide general education and help you prepare questions for a professional."
+)
+
+GENERAL_SAFETY_DISCLAIMER = (
+    "FitGenius provides general fitness and nutrition education, not medical diagnosis, treatment, "
+    "medication advice, or medical nutrition therapy."
+)
+
+
+def assess_medical_safety(profile=None, checkin=None, text="") -> dict:
+    """
+    Deterministic safety triage shared by recommendations and chat.
+    Returns level: ok, caution, clinician_review, or emergency.
+    """
+    haystack_parts = [text or ""]
+    if profile:
+        haystack_parts.extend([
+            getattr(profile, "chronic_disease", "") or "",
+            getattr(profile, "blood_pressure", "") or "",
+            getattr(profile, "fitness_goal", "") or "",
+        ])
+    if checkin:
+        haystack_parts.extend([
+            getattr(checkin, "injury_area", "") or "",
+            getattr(checkin, "notes", "") or "",
+            getattr(checkin, "preferred_intensity", "") or "",
+        ])
+
+    haystack = " ".join(haystack_parts).lower()
+    reasons = []
+    level = "ok"
+
+    emergency_patterns = [
+        r"\b(chest pain|chest tightness|heart attack)\b",
+        r"\b(fainting|fainted|passed out|blackout)\b",
+        r"\b(severe dizziness|cannot breathe|shortness of breath at rest)\b",
+        r"\b(blood glucose emergency|hypoglycemia|hyperglycemia|diabetic ketoacidosis)\b",
+        r"\b(suspected fracture|broken bone|serious injury)\b",
+    ]
+    clinician_patterns = [
+        r"\b(pregnan|postpartum|eating disorder|anorexia|bulimia|purging|binge eating)\b",
+        r"\b(kidney disease|renal disease|dialysis|ckd)\b",
+        r"\b(diabetes medication|insulin dose|metformin dose|blood pressure medication)\b",
+        r"\b(swelling|joint locking|locked knee|cannot bear weight|worsening pain)\b",
+    ]
+
+    for pattern in emergency_patterns:
+        if re.search(pattern, haystack):
+            reasons.append("Possible red-flag symptom or emergency.")
+            level = "emergency"
+            break
+
+    if level != "emergency":
+        for pattern in clinician_patterns:
+            if re.search(pattern, haystack):
+                reasons.append("Situation may require individualized clinician guidance.")
+                level = "clinician_review"
+                break
+
+    if profile and level not in ("emergency", "clinician_review"):
+        chronic = (getattr(profile, "chronic_disease", "") or "").lower()
+        if "heart" in chronic or "kidney" in chronic or "renal" in chronic:
+            reasons.append("Chronic condition requires clinician-aware plan review.")
+            level = "clinician_review"
+        elif getattr(profile, "hypertension", False) or getattr(profile, "diabetes", False):
+            reasons.append("Medical flag detected; recommendations must stay conservative.")
+            level = "caution"
+
+    if checkin and level not in ("emergency", "clinician_review"):
+        if getattr(checkin, "pain_or_injury", False):
+            reasons.append("Pain or injury reported; avoid pain-provoking exercise.")
+            level = "caution"
+        if (getattr(checkin, "soreness_level", 0) or 0) >= 4:
+            reasons.append("High soreness reported; reduce intensity and volume.")
+            level = "caution"
+
+    message = GENERAL_SAFETY_DISCLAIMER
+    if level == "emergency":
+        message = EMERGENCY_MESSAGE
+    elif level == "clinician_review":
+        message = CLINICIAN_REVIEW_MESSAGE
+    elif level == "caution":
+        message = (
+            f"{GENERAL_SAFETY_DISCLAIMER} Because your profile/check-in has safety flags, "
+            "keep activity low to moderate, avoid pain-provoking movements, and consult a qualified professional if symptoms worsen."
+        )
+
+    return {
+        "level": level,
+        "reasons": sorted(set(reasons)),
+        "message": message,
+        "blocks_plan": level in ("emergency", "clinician_review"),
+    }
+
+
+def build_safety_only_recommendation(profile, checkin, assessment: dict) -> dict:
+    """Return a persisted recommendation-shaped response when a plan is unsafe."""
+    snapshot = {
+        'age': getattr(profile, 'age', None),
+        'gender': getattr(profile, 'gender', ''),
+        'height': getattr(profile, 'height', None),
+        'weight': getattr(profile, 'weight', None),
+        'bmi': getattr(profile, 'bmi', None),
+        'fitness_goal': getattr(profile, 'fitness_goal', ''),
+        'activity_level': getattr(profile, 'activity_level', ''),
+        'experience_level': getattr(profile, 'experience_level', ''),
+        'equipment': getattr(profile, 'available_equipment', ''),
+        'dietary_preference': getattr(profile, 'dietary_preference', ''),
+        'hypertension': getattr(profile, 'hypertension', False),
+        'diabetes': getattr(profile, 'diabetes', False),
+        'chronic_disease': getattr(profile, 'chronic_disease', ''),
+    }
+    reasons = assessment.get("reasons") or ["Safety guard triggered."]
+    explanation = "Safety guard blocked personalized plan generation:\n" + "\n".join(
+        f"- {reason}" for reason in reasons
+    )
+    return {
+        'status': 'completed',
+        'confidence': 'low',
+        'algorithm_used': 'safety_guard',
+        'workout_split': 'Clinician review required',
+        'exercise_plan': [],
+        'workout_days_per_week': 0,
+        'diet_plan': {
+            'guidance': 'Personalized diet plan withheld pending qualified medical review.',
+        },
+        'daily_calorie_target': None,
+        'macro_split': {},
+        'health_notes': assessment.get("message", GENERAL_SAFETY_DISCLAIMER),
+        'llm_recommendation': assessment.get("message", GENERAL_SAFETY_DISCLAIMER),
+        'rag_context_chunks': reasons,
+        'profile_snapshot': snapshot,
+        'similar_profiles_count': 0,
+        'avg_similarity_score': None,
+        'explanation': explanation,
+    }
+
+
+def guard_chat_response(message, answer, profile=None, checkin=None) -> str:
+    """Clamp chat output when the user asks for unsafe medical guidance."""
+    assessment = assess_medical_safety(profile=profile, checkin=checkin, text=message)
+    if assessment["blocks_plan"]:
+        return assessment["message"]
+    if assessment["level"] == "caution":
+        return f"{answer}\n\nSafety note: {assessment['message']}"
+    return answer
+
 def checkin_context_score(checkin) -> dict:
     """
     Derive context flags from a DailyCheckIn for plan adjustments.

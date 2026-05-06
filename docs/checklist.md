@@ -107,7 +107,9 @@
 - [ ] Show stored recommendation history.
 - [ ] Explain stable vs dynamic data split.
 - [ ] Explain KNN similarity retrieval.
-- [ ] Explain safety and context-aware adjustment layer.
+- [x] Explain safety and context-aware adjustment layer.
+- [x] Document medical safety triage levels and chat/recommendation guardrails.
+- [x] Document synthetic collaborative interaction data generation assumptions and limitations.
 
 ## Final Polish
 

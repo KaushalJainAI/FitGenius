@@ -246,6 +246,10 @@ SPECTACULAR_SETTINGS = {
 
 # Dataset paths
 DATASET_DIR = BASE_DIR / 'data'
+CF_SYNTHETIC_INTERACTIONS_PATH = Path(config(
+    'CF_SYNTHETIC_INTERACTIONS_PATH',
+    default=str(DATASET_DIR / 'fitgenius_cf_synthetic_interactions.csv.gz'),
+))
 
 # NVIDIA/OpenAI-compatible LLM settings for help chat
 NVIDIA_API_KEY = config('NVIDIA_API_KEY', default='')

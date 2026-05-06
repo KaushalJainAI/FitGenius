@@ -49,6 +49,16 @@ Some raw files in `data/` are exploratory or currently unused by the production 
 - Applies Truncated SVD as an experimental latent-factor component.
 - Because the available data does not contain real ratings, clicks, or adoption logs, this should be presented as implicit-label experimentation rather than full collaborative filtering.
 
+### 3b. Synthetic Collaborative Interaction Priors
+
+**File**: `06_synthetic_cf_interactions_analysis.ipynb`
+
+- Profiles `fitgenius_cf_synthetic_interactions.csv.gz`, a simulated interaction telemetry dataset used for collaborative-filtering cold start.
+- The file contains synthetic user context, item metadata, ranking scores, simulated behavior (`viewed`, `started_or_eaten`, `completed`, `skipped`, ratings), pain/safety flags, and outcome labels.
+- The production backend reads this file through `CF_SYNTHETIC_INTERACTIONS_PATH` and aggregates item-level priors in `recommendations/collaborative.py`.
+- The data is intentionally ignored by git under `Backend/data/` because it is a large generated artifact.
+- This dataset should not be described as real user behavior, clinical evidence, or medical validation. It is a synthetic prior that is blended at lower weight than real app feedback.
+
 ### 4. Hybrid and Context-Aware Approaches (Unit 4 and Unit 6)
 
 **File**: `04_hybrid_and_context_aware.ipynb`

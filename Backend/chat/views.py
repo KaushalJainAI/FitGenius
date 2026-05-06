@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from profiles.models import DailyCheckIn, HealthProfile
+from recommendations.safety import assess_medical_safety, guard_chat_response
 
 from .models import ChatConversation, ChatMessage
 from .serializers import ChatConversationListSerializer, ChatConversationSerializer, ChatMessageSerializer
@@ -88,7 +89,12 @@ def _handle_chat_message(request, conversation):
 
     profile_context = build_profile_context(profile, latest_checkin)
     snippets = retrieve_chat_context(message, profile_context, document_text)
-    answer = call_nvidia_chat(message, profile_context, snippets)
+    safety_assessment = assess_medical_safety(profile=profile, checkin=latest_checkin, text=f"{message}\n{document_text}")
+    if safety_assessment["blocks_plan"]:
+        answer = safety_assessment["message"]
+    else:
+        answer = call_nvidia_chat(message, profile_context, snippets)
+        answer = guard_chat_response(message, answer, profile=profile, checkin=latest_checkin)
     sources = _serialize_sources(snippets)
     tool_calls = _tool_calls(profile, latest_checkin, sources)
 
@@ -102,6 +108,8 @@ def _handle_chat_message(request, conversation):
             'tool_calls': tool_calls,
             'used_profile': profile is not None,
             'used_latest_checkin': latest_checkin is not None,
+            'safety_level': safety_assessment["level"],
+            'safety_reasons': safety_assessment["reasons"],
         },
     )
 
@@ -114,6 +122,11 @@ def _handle_chat_message(request, conversation):
             'tool_calls': tool_calls,
             'used_profile': profile is not None,
             'used_latest_checkin': latest_checkin is not None,
+            'safety': {
+                'level': safety_assessment["level"],
+                'reasons': safety_assessment["reasons"],
+                'blocked': safety_assessment["blocks_plan"],
+            },
             'conversation': ChatConversationSerializer(conversation).data,
             'user_message': ChatMessageSerializer(user_message).data,
             'ai_response': ChatMessageSerializer(assistant_message).data,
