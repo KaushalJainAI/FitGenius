@@ -238,16 +238,30 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def metrics(self, request):
-        """Get feedback metrics (admin only or general depending on requirements)."""
+        """Get feedback metrics for the authenticated user's own recommendations."""
         from django.db.models import Avg
         from .models import RecommendationFeedback, ExerciseFeedback, MealFeedback
 
-        avg_rating = RecommendationFeedback.objects.aggregate(Avg('rating'))['rating__avg']
-        total_feedback = RecommendationFeedback.objects.count()
-        workout_completion = ExerciseFeedback.objects.filter(completed=True).count()
-        total_exercises = ExerciseFeedback.objects.count()
-        meal_eaten = MealFeedback.objects.filter(eaten=True).count()
-        total_meals = MealFeedback.objects.count()
+        user_recommendations = self.get_queryset()
+        plan_feedback = RecommendationFeedback.objects.filter(
+            user=request.user,
+            recommendation__in=user_recommendations,
+        )
+        exercise_feedback = ExerciseFeedback.objects.filter(
+            user=request.user,
+            recommendation__in=user_recommendations,
+        )
+        meal_feedback = MealFeedback.objects.filter(
+            user=request.user,
+            recommendation__in=user_recommendations,
+        )
+
+        avg_rating = plan_feedback.aggregate(Avg('rating'))['rating__avg']
+        total_feedback = plan_feedback.count()
+        workout_completion = exercise_feedback.filter(completed=True).count()
+        total_exercises = exercise_feedback.count()
+        meal_eaten = meal_feedback.filter(eaten=True).count()
+        total_meals = meal_feedback.count()
 
         workout_rate = (workout_completion / total_exercises) if total_exercises > 0 else 0
         meal_rate = (meal_eaten / total_meals) if total_meals > 0 else 0

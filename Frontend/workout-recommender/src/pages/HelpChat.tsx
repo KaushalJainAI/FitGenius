@@ -143,7 +143,7 @@ export default function HelpChat({ embedded = false }: { embedded?: boolean }) {
               <button
                 key={conversation.id}
                 type="button"
-                onClick={() => setActiveId(conversation.id)}
+                onClick={() => void handleConversationChange(conversation.id)}
                 className={cn(
                   "relative w-full text-left p-3 rounded-lg hover:bg-muted transition-colors",
                   activeId === conversation.id && "bg-muted font-medium"

@@ -2,9 +2,10 @@ from uuid import UUID
 
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from profiles.models import DailyCheckIn, HealthProfile
@@ -13,6 +14,10 @@ from recommendations.safety import assess_medical_safety, guard_chat_response
 from .models import ChatConversation, ChatMessage
 from .serializers import ChatConversationListSerializer, ChatConversationSerializer, ChatMessageSerializer
 from .services import build_profile_context, call_nvidia_chat, retrieve_chat_context
+
+
+class ChatRateThrottle(UserRateThrottle):
+    scope = 'chat'
 
 
 class HelpChatSerializer(serializers.Serializer):
@@ -48,6 +53,7 @@ class HelpChatView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ChatRateThrottle]
 
     def post(self, request):
         conversation = ChatConversation.objects.create(user=request.user)
@@ -56,6 +62,7 @@ class HelpChatView(APIView):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([ChatRateThrottle])
 def send_message(request, conversation_id: str):
     try:
         UUID(str(conversation_id))

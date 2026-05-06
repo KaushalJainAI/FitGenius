@@ -71,6 +71,10 @@ class DatasetEntrySerializer(serializers.ModelSerializer):
 
 
 class RecommendationFeedbackSerializer(serializers.ModelSerializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    difficulty_rating = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+    satisfaction_rating = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+
     class Meta:
         model = RecommendationFeedback
         fields = '__all__'
@@ -78,6 +82,8 @@ class RecommendationFeedbackSerializer(serializers.ModelSerializer):
 
 
 class ExerciseFeedbackSerializer(serializers.ModelSerializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+
     class Meta:
         model = ExerciseFeedback
         fields = '__all__'
@@ -85,6 +91,8 @@ class ExerciseFeedbackSerializer(serializers.ModelSerializer):
 
 
 class MealFeedbackSerializer(serializers.ModelSerializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+
     class Meta:
         model = MealFeedback
         fields = '__all__'
@@ -96,4 +104,3 @@ class UserPreferenceMemorySerializer(serializers.ModelSerializer):
         model = UserPreferenceMemory
         fields = '__all__'
         read_only_fields = ['id', 'user', 'updated_at']
-

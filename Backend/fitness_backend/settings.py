@@ -136,7 +136,8 @@ REST_FRAMEWORK = {
         'user': '10000/hour',
         'login': '5/minute',
         'register': '3/minute',
-        'recommendations': '30/minute',
+        'recommendations': '5/hour',
+        'chat': '20/hour',
         'password_reset': '10/day',
     }
 }
@@ -261,3 +262,5 @@ CHAT_EMBEDDING_MODEL = config('CHAT_EMBEDDING_MODEL', default='Qwen/Qwen3-Embedd
 CHAT_EMBEDDING_CACHE_DIR = Path(config('CHAT_EMBEDDING_CACHE_DIR', default=str(BASE_DIR / 'models' / 'chat_embeddings')))
 CHAT_EMBEDDING_DEVICE = config('CHAT_EMBEDDING_DEVICE', default='')
 CHAT_EMBEDDING_BATCH_SIZE = config('CHAT_EMBEDDING_BATCH_SIZE', default=8, cast=int)
+CHAT_ALLOW_EMBEDDING_DOWNLOAD = config('CHAT_ALLOW_EMBEDDING_DOWNLOAD', default=False, cast=bool)
+CHAT_ALLOW_WEB_SEARCH = config('CHAT_ALLOW_WEB_SEARCH', default=False, cast=bool)

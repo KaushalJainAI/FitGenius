@@ -184,6 +184,12 @@ class ChatEmbeddingService:
             try:
                 cls.model = SentenceTransformer(cls.model_name, local_files_only=True, **kwargs)
             except Exception:
+                if not getattr(settings, "CHAT_ALLOW_EMBEDDING_DOWNLOAD", False):
+                    logger.info(
+                        "Chat RAG encoder not found locally; semantic retrieval disabled for this process: %s",
+                        cls.model_name,
+                    )
+                    return None
                 logger.info("Chat RAG encoder not found locally; downloading once: %s", cls.model_name)
                 cls.model = SentenceTransformer(cls.model_name, **kwargs)
             logger.info(
@@ -284,7 +290,7 @@ def retrieve_chat_context(question, profile_context, document_text="", limit=8):
     chunks.extend(retrieve_knowledge_chunks(query, limit=limit))
     chunks.extend(_source_wrap(retrieve_document_snippets(question, document_text, limit=3), "Attached user document"))
 
-    if len(chunks) < 5:
+    if len(chunks) < 5 and getattr(settings, "CHAT_ALLOW_WEB_SEARCH", False):
         chunks.extend(search_official_sources(question, max_results=3))
 
     return rerank_chunks(query, _dedupe_chunks(chunks), limit=limit)

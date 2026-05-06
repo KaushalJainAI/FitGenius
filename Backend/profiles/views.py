@@ -205,7 +205,7 @@ class DailyCheckInViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def latest(self, request):
         """Return the most recent check-in."""
-        instance = self.get_queryset().first()
+        instance = self.get_queryset().order_by('-date', '-created_at').first()
         if not instance:
             return Response(
                 {'detail': 'No check-ins found.'},

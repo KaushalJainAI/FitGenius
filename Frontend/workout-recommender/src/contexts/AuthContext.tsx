@@ -36,11 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!tokenStore.access) {
-      setIsLoading(false);
-      return;
-    }
-
     refreshUser()
       .catch(() => {
         tokenStore.clear();
@@ -51,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.login(email, password);
-    tokenStore.set(data.access, data.refresh);
+    tokenStore.set(data.access);
     await refreshUser();
   }, [refreshUser]);
 

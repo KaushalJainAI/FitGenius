@@ -167,17 +167,20 @@ function normalizePayload(payload: Record<string, unknown>) {
 }
 
 export const tokenStore = {
+  accessToken: "",
   get access() {
-    return localStorage.getItem("fitgenius.accessToken");
+    return this.accessToken;
   },
   get refresh() {
-    return localStorage.getItem("fitgenius.refreshToken");
+    return "";
   },
-  set(access: string, refresh?: string) {
-    localStorage.setItem("fitgenius.accessToken", access);
-    if (refresh) localStorage.setItem("fitgenius.refreshToken", refresh);
+  set(access: string) {
+    this.accessToken = access;
+    localStorage.removeItem("fitgenius.accessToken");
+    localStorage.removeItem("fitgenius.refreshToken");
   },
   clear() {
+    this.accessToken = "";
     localStorage.removeItem("fitgenius.accessToken");
     localStorage.removeItem("fitgenius.refreshToken");
   },
@@ -194,14 +197,11 @@ async function parseResponse(response: Response) {
 }
 
 async function refreshAccessToken() {
-  const refresh = tokenStore.refresh;
-  if (!refresh) return false;
-
   const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) {
@@ -211,7 +211,7 @@ async function refreshAccessToken() {
 
   const data = await parseResponse(response) as Partial<LoginResponse>;
   if (!data?.access) return false;
-  tokenStore.set(data.access, data.refresh);
+  tokenStore.set(data.access);
   return true;
 }
 

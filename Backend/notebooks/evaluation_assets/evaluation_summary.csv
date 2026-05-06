@@ -1,0 +1,5 @@
+﻿model,accuracy,precision,recall,f1_score,safety_pass_rate,diversity,novelty
+rule_based,0.000,0.683,0.000,0.000,0.667,0.423,0.313
+knn,0.333,0.777,0.333,0.466,1.000,0.580,0.500
+hybrid,1.000,0.900,1.000,0.947,1.000,0.710,0.627
+
