@@ -6,13 +6,13 @@ The Profiles & Check-Ins subsystem acts as the primary data collection layer for
 ## Core Architecture
 - **Framework**: Django REST Framework.
 - **Models**: `HealthProfile` and `DailyCheckIn`.
-- **Validation**: Strict model and serializer-level validations guarantee data integrity before it reaches the AI recommendation pipeline.
+- **Validation**: Strict model and serializer-level validations protect data integrity before it reaches the recommendation pipeline.
 
 ## Key Features
 
 ### 1. Health Profile Management
 - **Model (`HealthProfile`)**: Captures detailed biometrics (age, weight, height, BMI), medical flags (chronic diseases, hypertension, diabetes), and lifestyle choices (diet, alcohol, sleep quality).
-- **Options Endpoint (`GET /api/profiles/options/`)**: Instead of hardcoding dropdown choices in the frontend, this endpoint serves dataset-grounded choices. For example, diet options like `Regular`, `Low Sodium`, and `Low Sugar` match the exact string expectations of the underlying ML models.
+- **Options Endpoint (`GET /api/profiles/options/`)**: Instead of hardcoding dropdown choices in the frontend, this endpoint serves backend-defined choices. For example, diet options like `Regular`, `Low Sodium`, and `Low Sugar` match the exact string expectations of the recommendation code.
 - **Defaults Endpoint (`GET /api/profiles/defaults/`)**: Provides standard fallback values to streamline the frontend onboarding/registration process.
 
 ### 2. Daily Readiness Check-Ins

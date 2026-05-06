@@ -2,7 +2,7 @@
 
 ## Overview
 
-FitGenius AI is a full-stack fitness and diet recommender with a Django REST API and a React + Vite frontend. The backend owns authentication, profile storage, daily check-ins, and recommendation generation. The frontend collects user input, sends authenticated requests, and renders the latest recommendation state.
+FitGenius AI is a full-stack fitness and diet recommender with a Django REST API and a React + Vite frontend. The backend owns authentication, profile storage, daily check-ins, recommendation generation, and one LLM-backed RAG help chat feature. The frontend collects user input, sends authenticated requests, and renders the latest recommendation state.
 
 ## System Layers
 
@@ -22,7 +22,7 @@ FitGenius AI is a full-stack fitness and diet recommender with a Django REST API
   - `users` - JWT auth and user profile endpoints.
   - `profiles` - `HealthProfile` and `DailyCheckIn` storage.
   - `recommendations` - recommendation generation, retrieval, and persistence.
-  - `chat` - persistent profile-aware RAG help chat.
+  - `chat` - persistent profile-aware RAG help chat. This is the only LLM-backed feature in the app.
   - `recommendations/safety.py` - shared medical safety triage for recommendations and chat.
 
 ### 3. Frontend Layer
@@ -71,7 +71,7 @@ The system uses a feedback-loop model comprising:
    - status, confidence, algorithm used
    - workout split, exercise plan, workout days per week
    - diet plan, calories, macros
-   - health notes, RAG/LLM explanation, rag chunks
+   - health notes and deterministic explanation text
    - profile and check-in snapshots
    - similarity count and similarity score
 
@@ -95,7 +95,7 @@ graph TD
     H --> I
     I --> J[Medical Safety Filters]
     J --> K[Context-aware Adjustments]
-    K --> L[Explanation Builder]
+    K --> L[Deterministic Explanation Builder]
     L --> M[Save Recommendation snapshot]
     M --> N[Return saved recommendation JSON]
     N --> O[Frontend plan/dashboard]
@@ -104,6 +104,7 @@ graph TD
 
 > **Note**: For an in-depth breakdown of the Hybrid Recommender System, the mathematical formulas, and the sub-models used, please see [`docs/subsystems/recommendation_engine.md`](subsystems/recommendation_engine.md).
 > **Safety**: FitGenius applies deterministic medical safety triage before personalized plans or chat answers are returned. See [`docs/subsystems/medical_safety.md`](subsystems/medical_safety.md).
+> **LLM scope**: Recommendation generation is not LLM-driven. The only LLM-backed user feature is the RAG help chat under `/api/chat/`.
 
 ## API Surface
 

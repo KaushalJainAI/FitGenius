@@ -8,7 +8,7 @@ The core of the engine is located in `Backend/recommendations/`.
 
 ## Architecture & Data Flow
 
-The engine generates recommendations by blending multiple distinct sub-models together, calculating a unified score, and applying deterministic safety overrides.
+The engine generates recommendations by selecting rule/template baselines, using KNN/similarity signals where available, applying feedback-based reranking, and enforcing deterministic safety overrides. It does not call an LLM to generate the workout or diet plan.
 
 ```mermaid
 graph TD
@@ -27,15 +27,13 @@ graph TD
     S -->|Allowed| B
 ```
 
-## The Four Sub-Models
+## Main Components
 
 ### 1. Content-Based Filtering (Base Templates)
-- **Weight**: 45% of final score.
 - **Mechanism**: Evaluates the user's static `HealthProfile` attributes (Fitness Goal, Available Equipment, Dietary Preference) and selects a foundational workout and diet structure from static templates.
 - **Purpose**: Provides a robust, logical starting point (e.g., Push/Pull/Legs for muscle gain) before any feedback is collected.
 
 ### 2. Collaborative Filtering
-- **Weight**: 25% of final score.
 - **Module**: `collaborative.py`
 - **Mechanism**: 
   1. Identifies a cohort of similar users by matching basic demographics and goals.
@@ -72,7 +70,6 @@ Current app-to-data category aliases include:
 Because the data is synthetic, it should be used for cold-start ranking only. Real feedback from authenticated users has higher weight and should eventually dominate the collaborative score.
 
 ### 3. Personalization Memory
-- **Weight**: 20% of final score.
 - **Module**: `feedback.py` & `models.UserPreferenceMemory`
 - **Mechanism**: The system tracks every interaction the user has with their plans. Over time, recurring signals are distilled into explicit preferences:
   - `preferred_exercises` / `preferred_foods`
@@ -80,7 +77,6 @@ Because the data is synthetic, it should be used for cold-start ranking only. Re
 - **Purpose**: Ensures that explicitly disliked items are heavily penalized (often dropping out of the plan entirely) while favored items are prioritized.
 
 ### 4. Context-Aware Adjustments
-- **Weight**: 10% of final score.
 - **Module**: `safety.py` (`apply_context_adjustments`)
 - **Mechanism**: Uses the `DailyCheckIn` state.
   - *High Soreness*: Modifies focus to recovery and decreases sets.
@@ -88,10 +84,9 @@ Because the data is synthetic, it should be used for cold-start ranking only. Re
   - *Low Available Time*: Truncates the session to a "Quick Workout" format.
 - **Purpose**: Adapts the long-term plan to the user's immediate, daily readiness.
 
-## The Reranker Formula
+## Reranking
 
-The `reranker.py` module evaluates the base plan against the sub-models using a weighted linear combination:
-`Final Score = (0.45 * Content) + (0.25 * Collaborative) + (0.20 * Personal) + (0.10 * Context)`
+The `reranker.py` module scores template items with content, collaborative, preference-memory, and context inputs. In the current implementation, context-aware check-in adjustments are applied as a separate deterministic pass after reranking.
 
 Items that fall below a specific threshold (or are explicitly blocked by `UserPreferenceMemory`) are swapped out for fallback alternatives. Highly scored items may receive a progressive overload boost (e.g., increased volume).
 
@@ -115,4 +110,4 @@ The system improves via explicit endpoints in `views.py`:
 - `POST /api/recommendations/<id>/exercise-feedback/`: Item-level signals (`[Done]`, `[Skipped]`, `[Too Hard]`, `[Pain]`).
 - `POST /api/recommendations/<id>/meal-feedback/`: Item-level signals (`[Eaten]`, `[Skipped]`, `[Hard to Prepare]`).
 
-These signals are asynchronously processed by `feedback.py` to continuously update the user's `UserPreferenceMemory`, ensuring the next generated plan is immediately smarter.
+These signals are processed by `feedback.py` when feedback endpoints are called, updating the user's `UserPreferenceMemory` so future generated plans can avoid repeated dislikes and preserve recurring preferences.

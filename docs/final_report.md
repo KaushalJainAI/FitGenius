@@ -1,17 +1,17 @@
-# Final Report: FitGenius AI Recommendation System and Infrastructure Upgrades
+# Final Report: FitGenius Recommendation System and Infrastructure Upgrades
 
 ## Executive Summary
 
-This report details the recent comprehensive updates to the FitGenius AI application, focusing primarily on enhancements to the core recommendation engine and the introduction of advanced backend and frontend capabilities. The system has been fortified with standardized global error handling, robust security flows, and precision upgrades to the machine learning data pipeline.
+This report details recent updates to the FitGenius application, focusing primarily on the recommendation engine, backend API, frontend workflows, and the RAG chat assistant. The system has been updated with standardized global error handling, security flows, and data-pipeline improvements.
 
 ---
 
 ## 1. Recommendation System Enhancements
 
-The AI recommendation engine has been fine-tuned to incorporate a broader set of user inputs, resulting in higher precision and more relevant personalized fitness and diet plans. 
+The recommendation engine has been updated to incorporate a broader set of user inputs, resulting in more relevant personalized fitness and diet plans.
 
 ### 1.1 Context Extraction and BMI Integration
-The recommendation engine (`engine.py`) now dynamically includes the user's calculated `BMI` when assembling the context profile. This ensures that when querying similar users via the K-Nearest Neighbors (KNN) algorithm and prompting the LLM, body composition is explicitly factored into the personalized plan generation.
+The recommendation engine (`engine.py`) now includes the user's calculated `BMI` when assembling the context profile. This ensures that when querying similar users via the K-Nearest Neighbors (KNN) algorithm, body composition is factored into recommendation selection and adjustment.
 
 ### 1.2 Dietary Options and Feature Vector Expansion
 The system now seamlessly incorporates three new dietary preferences (`Regular`, `Low Sodium`, `Low Sugar`). These additions have been integrated deeply into the recommendation logic:
@@ -20,7 +20,7 @@ The system now seamlessly incorporates three new dietary preferences (`Regular`,
 - **Profile Options Endpoint**: The `/api/profiles/options/` endpoint dynamically serves these new dataset-grounded choices to the frontend forms.
 
 ### 1.3 Serialization and Immutability
-To preserve the integrity of AI-generated results, the `RecommendationSerializer` has strictly defined its `read_only_fields`. This prevents accidental client-side overwrites of the generated LLM plans, check-in snapshots, and RAG context chunks.
+To preserve the integrity of generated recommendation records, the `RecommendationSerializer` has strictly defined its `read_only_fields`. This prevents accidental client-side overwrites of saved plans, check-in snapshots, and explanation fields.
 
 ---
 
@@ -36,7 +36,7 @@ Replaced fragmented error responses with a standardized `custom_exception_handle
 
 ### 2.3 Advanced User Preferences & Integrations
 - **Persistent Preferences**: Migrated user preferences (theme, measurement system, and notification settings) from client-side `localStorage` to a fully server-side `UserPreference` model.
-- **NVIDIA LLM Help Chat**: Bootstrapped the new `chat` application, integrated with NVIDIA's Llama-3.1-70B-Instruct API. This provides users with contextual, conversational fitness Q&A capabilities directly in the app.
+- **RAG Help Chat**: Bootstrapped the new `chat` application, integrated with an NVIDIA-compatible chat completion API. This is the app's only LLM-backed feature and provides contextual fitness Q&A using profile/check-in context and retrieved guidance snippets.
 - **Billing Infrastructure**: Laid the foundation for premium memberships via the new `billing` app, handling subscription status, free trial activation, and billing plan catalog delivery.
 
 ### 2.4 Frontend Stabilization
@@ -47,4 +47,4 @@ Replaced fragmented error responses with a standardized `custom_exception_handle
 
 ## Conclusion
 
-The recommendation system is now fully synchronized with the underlying datasets, extracting detailed user context to provide precise, data-driven outputs. By expanding the feature vectors and integrating critical biometrics like BMI, the LLM context is richer and more accurate. Coupled with the new secure authentication flows, global exception handling, and persistent user preferences, FitGenius AI achieves a highly stable, production-ready architecture.
+The recommendation system is now more closely aligned with the underlying datasets, extracting detailed user context to provide data-informed outputs. By expanding the feature vectors and integrating critical biometrics like BMI, recommendation matching has more useful context. Coupled with the secure authentication flows, global exception handling, RAG chat assistant, and persistent user preferences, FitGenius has a clearer and more maintainable architecture.

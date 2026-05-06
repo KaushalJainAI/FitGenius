@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Exercise and diet recommendations are medically sensitive. FitGenius therefore treats the LLM and ranking models as advisory components, not as the authority that decides whether a plan is safe.
+Exercise and diet recommendations are medically sensitive. FitGenius therefore treats ranking, templates, and the RAG chat model as advisory components, not as the authority that decides whether a plan is safe.
 
 The backend applies deterministic safety checks before personalized plans or chat answers are returned.
 
@@ -62,7 +62,7 @@ Important functions:
 - `apply_medical_safety_filter(exercise_plan, checkin, profile)`
 - `guard_chat_response(message, answer, profile, checkin)`
 
-Recommendation generation calls the safety assessment before template selection, KNN aggregation, reranking, calorie estimation, and RAG explanation. If the assessment blocks a plan, a saved recommendation record is still returned, but its `algorithm_used` is `safety_guard`, with no exercise plan and no personalized macro prescription.
+Recommendation generation calls the safety assessment before template selection, KNN aggregation, reranking, calorie estimation, and explanation building. If the assessment blocks a plan, a saved recommendation record is still returned, but its `algorithm_used` is `safety_guard`, with no exercise plan and no personalized macro prescription.
 
 Chat calls the same safety assessment before the NVIDIA LLM. If the user asks for unsafe medical guidance, the model is bypassed and a deterministic safety message is returned.
 

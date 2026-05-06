@@ -18,7 +18,7 @@ This document tracks what is already implemented in the codebase and what still 
 - Recommendation history and latest endpoints.
 - Dashboard and analytics summary endpoints for streaks, consistency, next workout, and page summary data.
 - Backend-owned profile defaults and profile/check-in option metadata endpoints.
-- AI Help Chat integration using NVIDIA LLM APIs for fitness-related Q&A.
+- RAG Help Chat integration using NVIDIA-compatible LLM APIs for fitness-related Q&A. This is the only LLM-backed feature.
 - Billing plan catalog and subscription endpoints.
 
 ### Frontend
@@ -29,7 +29,7 @@ This document tracks what is already implemented in the codebase and what still 
 - Dashboard summary and analytics streak driven by backend data.
 - Latest recommendation view with detailed workout and diet plans.
 - Settings page fully wired for user preferences, security management (2FA, password resets), and billing.
-- Help Chat interface connecting to the AI backend.
+- Help Chat interface connecting to the RAG chat backend.
 - Custom premium UI components replacing native inputs, with stable global light/dark theme switching.
 
 ## Remaining Work

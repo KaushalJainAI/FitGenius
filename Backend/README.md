@@ -37,7 +37,7 @@ Stored recommendation snapshot:
 - `status`, `confidence`, `algorithm_used`
 - `workout_split`, `exercise_plan`, `workout_days_per_week`
 - `diet_plan`, `daily_calorie_target`, `macro_split`
-- `health_notes`, `llm_recommendation`, `rag_context_chunks`
+- `health_notes`, explanation text, and optional legacy `llm_recommendation` / `rag_context_chunks` fields
 - `profile_snapshot`, `checkin_snapshot`
 - `explanation`, `similar_profiles_count`, `avg_similarity_score`
 
@@ -84,7 +84,9 @@ The engine in `recommendations/engine.py` follows this flow:
 3. Aggregate the top matching historical plans.
 4. Apply medical safety constraints.
 5. Apply daily context adjustments from the latest check-in.
-6. Build an explanation and store the final recommendation.
+6. Build deterministic explanation text and store the final recommendation.
+
+Recommendation generation does not call an LLM. The only LLM-backed feature is the separate RAG help chat API under `/api/chat/`.
 
 ## Local Setup
 
@@ -97,4 +99,3 @@ python manage.py runserver
 ```
 
 If you need to regenerate model artifacts, run the notebook pipeline under `Backend/notebooks/` first, then refresh the engine cache or restart the server.
-
