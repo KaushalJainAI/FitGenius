@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { Bot, FileText, Globe2, History, Loader2, Plus, UserRound, X, Sparkles, SendHorizontal } from "lucide-react";
+import { Bot, FileText, Globe2, History, Loader2, MessageSquarePlus, Plus, UserRound, X, Sparkles, SendHorizontal } from "lucide-react";
 import { api } from "../lib/api";
 import type { ChatConversation as ApiConversation, ChatMessage as ApiMessage, HelpChatResponse } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -111,6 +111,11 @@ export default function HelpChat({ embedded = false }: { embedded?: boolean }) {
     setSidebarOpen(false);
   }
 
+  async function handleConversationChange(id: string) {
+    if (!id || id === activeId) return;
+    await loadConversation(id);
+  }
+
   return (
     <div className={cn(
       "animate-page-enter flex min-w-0 overflow-hidden bg-card",
@@ -152,6 +157,38 @@ export default function HelpChat({ embedded = false }: { embedded?: boolean }) {
       )}
 
       <section className="min-w-0 flex-1 flex flex-col bg-card overflow-hidden relative">
+        {embedded && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border/50 bg-card px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="help-chat-conversation" className="sr-only">Conversation</label>
+              <select
+                id="help-chat-conversation"
+                value={activeId}
+                onChange={(event) => void handleConversationChange(event.target.value)}
+                disabled={isLoadingConversations || conversations.length === 0}
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground outline-none transition-colors hover:bg-muted/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingConversations && <option value="">Loading chats...</option>}
+                {!isLoadingConversations && conversations.length === 0 && <option value="">No chats yet</option>}
+                {conversations.map((conversation) => (
+                  <option key={conversation.id} value={conversation.id}>
+                    {conversation.title || "New Chat"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => void startNewConversation()}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              title="New Chat"
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+              <span>New Chat</span>
+            </button>
+          </div>
+        )}
+
         {!embedded && <div className="flex items-center justify-between p-4 border-b border-border/40 shrink-0 bg-card">
           <div className="flex items-center gap-4">
             <button 
