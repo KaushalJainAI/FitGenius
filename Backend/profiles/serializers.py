@@ -43,6 +43,11 @@ class HealthProfileCreateSerializer(serializers.ModelSerializer):
         model = HealthProfile
         exclude = ['user', 'bmi', 'bmi_level', 'created_at', 'updated_at']
 
+    def validate_exercise_frequency(self, value):
+        if value < 1 or value > 7:
+            raise serializers.ValidationError('Exercise frequency must be between 1 and 7 days per week.')
+        return value
+
     def create(self, validated_data):
         user = self.context['request'].user
         # Update existing or create new
@@ -76,6 +81,18 @@ class DailyCheckInSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
+    def validate(self, attrs):
+        for field in ('energy_level', 'soreness_level', 'stress_level'):
+            value = attrs.get(field)
+            if value is not None and (value < 1 or value > 5):
+                raise serializers.ValidationError({field: 'Value must be between 1 and 5.'})
+
+        sleep_hours = attrs.get('sleep_hours')
+        if sleep_hours is not None and (sleep_hours < 0 or sleep_hours > 24):
+            raise serializers.ValidationError({'sleep_hours': 'Sleep hours must be between 0 and 24.'})
+
+        return attrs
+
     def create(self, validated_data):
         user = self.context['request'].user
         validated_data['user'] = user
@@ -93,4 +110,9 @@ class DailyCheckInListSerializer(serializers.ModelSerializer):
             'workout_completed', 'pain_or_injury', 'available_minutes',
             'preferred_intensity', 'created_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = (
+            'id', 'date', 'current_weight', 'sleep_quality', 'sleep_hours',
+            'daily_steps', 'energy_level', 'soreness_level', 'stress_level',
+            'workout_completed', 'pain_or_injury', 'available_minutes',
+            'preferred_intensity', 'created_at',
+        )

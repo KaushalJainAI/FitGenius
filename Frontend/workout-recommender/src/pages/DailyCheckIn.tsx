@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { CalendarCheck, HeartPulse, Save, Sparkles } from "lucide-react";
+import { CalendarCheck, HeartPulse, Save, Sparkles, Plus, Minus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { defaultCheckIn, getCheckIn, saveCheckIn } from "../lib/recommendationData";
 import type { DailyCheckIn as CheckIn } from "../lib/recommendationData";
 import { api } from "../lib/api";
+import { useTheme } from "../contexts/ThemeContext";
+import { displayWeight, inputWeight, weightUnit } from "../lib/units";
+import { Select } from "../components/Select";
 
 const sleepOptions = [["poor", "Poor"], ["fair", "Fair"], ["good", "Good"]];
 const intensityOptions = [["low", "Low"], ["moderate", "Moderate"], ["high", "High"]];
@@ -14,6 +17,7 @@ export default function DailyCheckIn() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { measurementSystem } = useTheme();
 
   useEffect(() => {
     api.latestCheckIn()
@@ -54,7 +58,7 @@ export default function DailyCheckIn() {
   return (
     <form onSubmit={submit} className="space-y-6 max-w-5xl animate-content-reveal">
       {(isLoading || notice) && (
-        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground whitespace-pre-line">
           {isLoading ? "Loading your latest backend check-in..." : notice}
         </div>
       )}
@@ -65,7 +69,7 @@ export default function DailyCheckIn() {
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <TextField type="date" label="Date" value={checkin.date} onChange={(v) => set("date", v)} />
-          <NumberField label="Current Weight" suffix="KG" value={checkin.current_weight} onChange={(v) => set("current_weight", v)} />
+          <NumberField label="Current Weight" suffix={weightUnit(measurementSystem)} value={displayWeight(checkin.current_weight, measurementSystem)} onChange={(v) => set("current_weight", inputWeight(v, measurementSystem))} />
           <SelectField label="Sleep Quality" value={checkin.sleep_quality} values={sleepOptions} onChange={(v) => set("sleep_quality", v)} />
           <NumberField label="Sleep Hours" value={checkin.sleep_hours} onChange={(v) => set("sleep_hours", v)} />
           <NumberField label="Daily Steps" value={checkin.daily_steps} onChange={(v) => set("daily_steps", v)} />
@@ -89,7 +93,7 @@ export default function DailyCheckIn() {
           <TextField label="Injury Area" value={checkin.injury_area} placeholder="knee, shoulder, back..." onChange={(v) => set("injury_area", v)} />
           <label className="space-y-2 block text-sm">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</span>
-            <textarea value={checkin.notes} onChange={(e) => set("notes", e.target.value)} className="min-h-28 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-medium outline-none focus:ring-2 focus:ring-primary/50" />
+            <textarea value={checkin.notes} onChange={(e) => set("notes", e.target.value)} className="min-h-28 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 font-medium outline-none focus:ring-2 focus:ring-primary/50" />
           </label>
         </div>
       </section>
@@ -117,20 +121,81 @@ export default function DailyCheckIn() {
   );
 }
 
-function NumberField({ label, value, suffix, onChange }: { label: string; value: number | ""; suffix?: string; onChange: (v: number | "") => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><div className="relative"><input type="number" value={value} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 pr-12 font-medium outline-none focus:ring-2 focus:ring-primary/50" />{suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{suffix}</span>}</div></label>;
+function NumberField({ label, value, suffix, onChange }: { label: string; value: number | "" | null; suffix?: string; onChange: (v: number | "") => void }) {
+  const handleStep = (step: number) => {
+    const current = Number(value) || 0;
+    const next = current + step;
+    if (next < 0) return;
+    onChange(next);
+  };
+
+  return (
+    <label className="space-y-2 text-sm group">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-focus-within:text-primary transition-colors">{label}</span>
+      <div className="relative flex items-center h-[42px]">
+        <button 
+          type="button"
+          onClick={() => handleStep(-1)}
+          className="absolute left-1 z-10 p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors active:scale-90"
+        >
+          <Minus size={14} />
+        </button>
+        <div className="relative w-full flex items-center justify-center h-full border border-border bg-background rounded-lg hover:border-primary/50 transition-all focus-within:ring-2 focus-within:ring-primary/50 overflow-hidden">
+          <input 
+            type="number" 
+            value={value ?? ""} 
+            onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} 
+            className="w-full h-full bg-transparent text-center text-foreground font-bold outline-none px-12" 
+          />
+          {suffix && (
+            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/30 pointer-events-none select-none">
+              {suffix}
+            </span>
+          )}
+        </div>
+        <button 
+          type="button"
+          onClick={() => handleStep(1)}
+          className="absolute right-1 z-10 p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors active:scale-90"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </label>
+  );
 }
 
 function TextField({ label, value, type = "text", placeholder, onChange }: { label: string; value: string; type?: string; placeholder?: string; onChange: (v: string) => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 font-medium outline-none focus:ring-2 focus:ring-primary/50" /></label>;
+  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 font-medium outline-none focus:ring-2 focus:ring-primary/50" /></label>;
 }
 
 function SelectField({ label, value, values, onChange }: { label: string; value: string; values: string[][]; onChange: (v: string) => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 pr-10 font-medium outline-none transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/50">{values.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>;
+  const options = values.map(([val, lbl]) => ({ value: val, label: lbl }));
+  return (
+    <label className="space-y-2 text-sm group">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-focus-within:text-primary transition-colors">{label}</span>
+      <Select 
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
+    </label>
+  );
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return <button type="button" onClick={() => onChange(!checked)} className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-sm font-semibold ${checked ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}><span>{label}</span><span className={`h-5 w-9 rounded-full p-0.5 ${checked ? "bg-primary" : "bg-muted"}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${checked ? "translate-x-4" : ""}`} /></span></button>;
+  return (
+    <button 
+      type="button" 
+      onClick={() => onChange(!checked)} 
+      className={`flex w-full h-[42px] items-center justify-between self-end rounded-lg border px-4 gap-3 text-sm font-semibold transition-colors ${checked ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted/50"}`}
+    >
+      <span className="truncate flex-1 text-left">{label}</span>
+      <span className={`shrink-0 h-5 w-9 rounded-full p-0.5 transition-colors ${checked ? "bg-primary" : "bg-muted"}`}>
+        <span className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : ""}`} />
+      </span>
+    </button>
+  );
 }
 
 function Slider({ label, value, low, high, onChange }: { label: string; value: number; low: string; high: string; onChange: (v: number) => void }) {

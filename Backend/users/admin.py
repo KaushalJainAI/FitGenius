@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
+from .models import User, UserPreference
 
 
 @admin.register(User)
@@ -16,3 +16,11 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('phone', 'date_of_birth', 'created_at', 'updated_at'),
         }),
     )
+
+
+@admin.register(UserPreference)
+class UserPreferenceAdmin(admin.ModelAdmin):
+    list_display = ['user', 'theme', 'measurement_system', 'push_enabled', 'weekly_email_enabled', 'two_factor_enabled']
+    list_filter = ['theme', 'measurement_system', 'push_enabled', 'weekly_email_enabled', 'two_factor_enabled']
+    search_fields = ['user__email', 'user__username']
+    readonly_fields = ['created_at', 'updated_at']

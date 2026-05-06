@@ -1,21 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Activity, HeartPulse, Salad, Save, Sparkles, UserRound } from "lucide-react";
+import { Activity, HeartPulse, Salad, Save, Sparkles, UserRound, Plus, Minus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { bmi, bmiLabel, defaultProfile, getProfile, saveProfile } from "../lib/recommendationData";
 import type { HealthProfile } from "../lib/recommendationData";
 import { api } from "../lib/api";
+import { useTheme } from "../contexts/ThemeContext";
+import { displayHeight, displayWeight, heightUnit, inputHeight, inputWeight, weightUnit } from "../lib/units";
+import { Select } from "../components/Select";
 
-const goals = [["weight_loss", "Weight Loss"], ["weight_gain", "Weight Gain"], ["muscle_gain", "Muscle Gain"], ["maintenance", "Maintenance"], ["endurance", "Endurance"]];
-const options = {
+type Choice = { value: string; label: string };
+type ProfileOptions = typeof fallbackOptions & { chronicDisease: string[][] };
+
+const fallbackGoals = [["weight_loss", "Weight Loss"], ["weight_gain", "Weight Gain"], ["maintenance", "Maintenance"]];
+const fallbackOptions = {
   gender: [["male", "Male"], ["female", "Female"], ["other", "Other"]],
-  activity: [["sedentary", "Sedentary"], ["low", "Low"], ["moderate", "Moderate"], ["active", "Active"], ["very_active", "Very Active"]],
-  diet: [["no_preference", "No Preference"], ["vegetarian", "Vegetarian"], ["non_veg", "Non-Vegetarian"], ["vegan", "Vegan"], ["pescatarian", "Pescatarian"], ["keto", "Keto"], ["paleo", "Paleo"], ["mediterranean", "Mediterranean"]],
+  activity: [["sedentary", "Sedentary"], ["moderate", "Moderate"], ["active", "Active"]],
+  diet: [["no_preference", "No Preference"], ["regular", "Regular"], ["vegetarian", "Vegetarian"], ["vegan", "Vegan"], ["keto", "Keto"], ["low_sodium", "Low Sodium"], ["low_sugar", "Low Sugar"]],
   sleep: [["poor", "Poor"], ["fair", "Fair"], ["good", "Good"]],
   alcohol: [["none", "None"], ["occasional", "Occasional"], ["regular", "Regular"]],
   risk: [["low", "Low"], ["moderate", "Moderate"], ["high", "High"]],
   experience: [["beginner", "Beginner"], ["intermediate", "Intermediate"], ["advanced", "Advanced"]],
   workout: [["mixed", "Mixed"], ["strength", "Strength"], ["cardio", "Cardio"], ["flexibility", "Flexibility"], ["hiit", "HIIT"]],
   equipment: [["full_gym", "Full Gym"], ["dumbbells", "Dumbbells"], ["bodyweight", "Bodyweight"], ["home_gym", "Home Gym"], ["resistance_bands", "Resistance Bands"]],
+  chronicDisease: [["", "None"], ["diabetes", "Diabetes"], ["heart_disease", "Heart Disease"], ["hypertension", "Hypertension"], ["obesity", "Obesity"]],
 };
 
 export default function ProfileSetup() {
@@ -23,10 +30,32 @@ export default function ProfileSetup() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const [goals, setGoals] = useState<string[][]>(fallbackGoals);
+  const [options, setOptions] = useState<ProfileOptions>(fallbackOptions);
   const navigate = useNavigate();
+  const { measurementSystem } = useTheme();
   const bmiValue = useMemo(() => bmi(profile), [profile]);
 
   useEffect(() => {
+    api.profileOptions()
+      .then((data) => {
+        const datasetOptions = data as Record<string, Choice[]>;
+        setGoals(toPairs(datasetOptions.fitness_goal, fallbackGoals));
+        setOptions((current) => ({
+          ...current,
+          gender: toPairs(datasetOptions.gender, current.gender),
+          activity: toPairs(datasetOptions.activity_level, current.activity),
+          diet: toPairs(datasetOptions.dietary_preference, current.diet),
+          sleep: toPairs(datasetOptions.sleep_quality, current.sleep),
+          alcohol: toPairs(datasetOptions.alcohol_consumption, current.alcohol),
+          risk: toPairs(datasetOptions.genetic_risk, current.risk),
+          experience: toPairs(datasetOptions.experience_level, current.experience),
+          workout: toPairs(datasetOptions.preferred_workout_type, current.workout),
+          equipment: toPairs(datasetOptions.available_equipment, current.equipment),
+          chronicDisease: toPairs(datasetOptions.chronic_disease, current.chronicDisease),
+        }));
+      })
+      .catch(() => {});
     api.profile()
       .then((data) => {
         const next = { ...defaultProfile, ...(data as Partial<HealthProfile>) };
@@ -34,6 +63,9 @@ export default function ProfileSetup() {
         saveProfile(next);
       })
       .catch(() => {
+        api.profileDefaults()
+          .then((defaults) => setProfile({ ...defaultProfile, ...(defaults as Partial<HealthProfile>) }))
+          .catch(() => {});
         setNotice("No backend profile found yet. Fill this once and it will be saved to your account.");
       })
       .finally(() => setIsLoading(false));
@@ -65,7 +97,7 @@ export default function ProfileSetup() {
   return (
     <form onSubmit={submit} className="space-y-6 animate-content-reveal">
       {(isLoading || notice) && (
-        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground whitespace-pre-line">
           {isLoading ? "Loading your backend profile..." : notice}
         </div>
       )}
@@ -75,8 +107,8 @@ export default function ProfileSetup() {
           <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
             <NumberField label="Age" value={profile.age} onChange={(v) => set("age", v)} />
             <SelectField label="Gender" value={profile.gender} values={options.gender} onChange={(v) => set("gender", v)} />
-            <NumberField label="Height" suffix="CM" value={profile.height} onChange={(v) => set("height", v)} />
-            <NumberField label="Weight" suffix="KG" value={profile.weight} onChange={(v) => set("weight", v)} />
+            <NumberField label="Height" suffix={heightUnit(measurementSystem)} value={displayHeight(profile.height, measurementSystem)} onChange={(v) => set("height", inputHeight(v, measurementSystem))} />
+            <NumberField label="Weight" suffix={weightUnit(measurementSystem)} value={displayWeight(profile.weight, measurementSystem)} onChange={(v) => set("weight", inputWeight(v, measurementSystem))} />
           </div>
         </section>
 
@@ -97,7 +129,7 @@ export default function ProfileSetup() {
         <section className="bg-card border border-border rounded-lg shadow-card overflow-hidden">
           <SectionTitle icon={<HeartPulse />} title="Medical & Lifestyle Signals" action="Safety rules" />
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <TextField label="Chronic Disease" value={profile.chronic_disease} placeholder="None, heart disease..." onChange={(v) => set("chronic_disease", v)} />
+            <SelectField label="Chronic Disease" value={normalizeChronicDisease(profile.chronic_disease)} values={options.chronicDisease} onChange={(v) => set("chronic_disease", v)} />
             <NumberField label="Systolic BP" value={profile.blood_pressure_systolic} onChange={(v) => set("blood_pressure_systolic", v)} />
             <NumberField label="Diastolic BP" value={profile.blood_pressure_diastolic} onChange={(v) => set("blood_pressure_diastolic", v)} />
             <NumberField label="Cholesterol" suffix="mg/dL" value={profile.cholesterol} onChange={(v) => set("cholesterol", v)} />
@@ -155,18 +187,92 @@ function SectionTitle({ icon, title, action }: { icon: React.ReactNode; title: s
   return <div className="border-b border-border bg-muted/20 p-5 flex items-center justify-between"><h2 className="font-semibold flex items-center gap-2">{icon}{title}</h2><span className="text-xs font-bold uppercase text-secondary">{action}</span></div>;
 }
 
-function NumberField({ label, value, suffix, min, max, onChange }: { label: string; value: number | ""; suffix?: string; min?: number; max?: number; onChange: (v: number | "") => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><div className="relative"><input type="number" min={min} max={max} value={value} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 pr-12 font-medium outline-none focus:ring-2 focus:ring-primary/50" />{suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{suffix}</span>}</div></label>;
+function NumberField({ label, value, suffix, min, max, onChange }: { label: string; value: number | "" | null; suffix?: string; min?: number; max?: number; onChange: (v: number | "") => void }) {
+  const handleStep = (step: number) => {
+    const current = Number(value) || 0;
+    const next = current + step;
+    if (min !== undefined && next < min) return;
+    if (max !== undefined && next > max) return;
+    onChange(next);
+  };
+
+  return (
+    <label className="space-y-2 text-sm group">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-focus-within:text-primary transition-colors">{label}</span>
+      <div className="relative flex items-center h-[42px]">
+        <button 
+          type="button"
+          onClick={() => handleStep(-1)}
+          className="absolute left-1 z-10 p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors active:scale-90"
+        >
+          <Minus size={14} />
+        </button>
+        <div className="relative w-full flex items-center justify-center h-full border border-border bg-background rounded-lg hover:border-primary/50 transition-all focus-within:ring-2 focus-within:ring-primary/50 overflow-hidden">
+          <input 
+            type="number" 
+            min={min} 
+            max={max} 
+            value={value ?? ""} 
+            onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} 
+            className="w-full h-full bg-transparent text-center text-foreground font-bold outline-none px-12" 
+          />
+          {suffix && (
+            <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase tracking-widest text-muted-foreground/30 pointer-events-none select-none">
+              {suffix}
+            </span>
+          )}
+        </div>
+        <button 
+          type="button"
+          onClick={() => handleStep(1)}
+          className="absolute right-1 z-10 p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors active:scale-90"
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </label>
+  );
 }
 
 function TextField({ label, value, placeholder, onChange }: { label: string; value: string; placeholder?: string; onChange: (v: string) => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 font-medium outline-none focus:ring-2 focus:ring-primary/50" /></label>;
+  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground/60 font-medium outline-none focus:ring-2 focus:ring-primary/50" /></label>;
 }
 
 function SelectField({ label, value, values, onChange }: { label: string; value: string; values: string[][]; onChange: (v: string) => void }) {
-  return <label className="space-y-2 text-sm"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2.5 pr-10 font-medium outline-none transition-all hover:border-primary/50 focus:ring-2 focus:ring-primary/50">{values.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>;
+  const options = values.map(([val, lbl]) => ({ value: val, label: lbl }));
+  return (
+    <label className="space-y-2 text-sm group">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-focus-within:text-primary transition-colors">{label}</span>
+      <Select 
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
+function toPairs(values: Choice[] | undefined, fallback: string[][]) {
+  return values?.length ? values.map((option) => [option.value, option.label]) : fallback;
+}
+
+function normalizeChronicDisease(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "_");
+  if (normalized === "none") return "";
+  return normalized;
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return <button type="button" onClick={() => onChange(!checked)} className={`flex h-[42px] items-center justify-between self-end rounded-lg border px-3 text-sm font-semibold ${checked ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}><span>{label}</span><span className={`h-5 w-9 rounded-full p-0.5 ${checked ? "bg-primary" : "bg-muted"}`}><span className={`block h-4 w-4 rounded-full bg-white transition-transform ${checked ? "translate-x-4" : ""}`} /></span></button>;
+  return (
+    <button 
+      type="button" 
+      onClick={() => onChange(!checked)} 
+      className={`flex w-full h-[42px] items-center justify-between self-end rounded-lg border px-4 gap-3 text-sm font-semibold transition-colors ${checked ? "border-primary/60 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted/50"}`}
+    >
+      <span className="truncate flex-1 text-left">{label}</span>
+      <span className={`shrink-0 h-5 w-9 rounded-full p-0.5 transition-colors ${checked ? "bg-primary" : "bg-muted"}`}>
+        <span className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : ""}`} />
+      </span>
+    </button>
+  );
 }

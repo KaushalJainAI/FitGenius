@@ -8,14 +8,17 @@ type User = {
   email: string;
   first_name?: string;
   last_name?: string;
+  phone?: string;
+  date_of_birth?: string | null;
   created_at?: string;
+  updated_at?: string;
 };
 
 type AuthContextValue = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (payload: Record<string, unknown>) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -46,8 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, [refreshUser]);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const data = await api.login(username, password);
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await api.login(email, password);
     tokenStore.set(data.access, data.refresh);
     await refreshUser();
   }, [refreshUser]);

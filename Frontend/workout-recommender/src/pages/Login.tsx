@@ -53,7 +53,7 @@ export default function Login() {
                 type="text" 
                 placeholder="sarah or sarah@example.com" 
                 required
-                className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
+                className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
               />
             </div>
           </div>
@@ -71,12 +71,12 @@ export default function Login() {
                 type="password" 
                 placeholder="••••••••" 
                 required
-                className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
+                className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium" 
               />
             </div>
           </div>
 
-          {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">{error}</div>}
+          {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground whitespace-pre-line">{error}</div>}
 
           <button 
             type="submit" 

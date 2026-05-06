@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Target, TrendingUp, Zap } from 'lucide-react';
 import { api } from '../lib/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { displayWeight, weightUnit } from '../lib/units';
 
 type CheckInRow = {
   id: number;
@@ -16,6 +18,7 @@ export default function Progress() {
   const [checkins, setCheckins] = useState<CheckInRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const { measurementSystem } = useTheme();
 
   useEffect(() => {
     api.checkInHistory()
@@ -29,14 +32,17 @@ export default function Progress() {
 
   const data = useMemo(() => checkins.map((row, index) => ({
     name: row.date || `Entry ${index + 1}`,
-    weight: row.current_weight,
+    weight: displayWeight(row.current_weight, measurementSystem) || null,
     setsCompleted: row.workout_completed ? 1 : 0,
     consistency: Math.round((checkins.slice(0, index + 1).filter((item) => item.workout_completed).length / (index + 1)) * 100),
-  })), [checkins]);
+  })), [checkins, measurementSystem]);
 
   const weights = data.map((row) => row.weight).filter((weight): weight is number => typeof weight === "number");
   const latestWeight = weights.at(-1);
   const startWeight = weights[0];
+  const weightDelta = typeof latestWeight === "number" && typeof startWeight === "number"
+    ? (latestWeight - startWeight).toFixed(1)
+    : null;
   const completedWorkouts = checkins.filter((row) => row.workout_completed).length;
   const consistency = checkins.length ? Math.round((completedWorkouts / checkins.length) * 100) : 0;
 
@@ -50,7 +56,7 @@ export default function Progress() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 stagger-children">
-        <MetricCard icon={<TrendingUp />} label="Weight Log" value={`${latestWeight ?? '-'} kg`} note={latestWeight && startWeight ? `${(latestWeight - startWeight).toFixed(1)} kg from start` : "Add check-ins to track change"} />
+        <MetricCard icon={<TrendingUp />} label="Weight Log" value={`${latestWeight || '-'} ${weightUnit(measurementSystem).toLowerCase()}`} note={weightDelta ? `${weightDelta} ${weightUnit(measurementSystem).toLowerCase()} from start` : "Add check-ins to track change"} />
         <MetricCard icon={<Target />} label="Workouts Logged" value={String(completedWorkouts)} note="Live from backend check-ins" accent="text-secondary" />
         <MetricCard icon={<Zap />} label="Consistency" value={`${consistency}%`} note={checkins.length ? `${completedWorkouts} of ${checkins.length} check-ins completed` : "No check-ins yet"} accent="text-accent" />
       </div>

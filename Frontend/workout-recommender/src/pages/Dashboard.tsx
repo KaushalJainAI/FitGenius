@@ -13,15 +13,29 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    Promise.allSettled([
-      api.profile(),
-      api.latestCheckIn(),
-      api.latestRecommendation(),
-    ]).then(([profileResult, checkinResult, planResult]) => {
-      if (profileResult.status === "fulfilled") setProfile({ ...defaultProfile, ...(profileResult.value as Partial<HealthProfile>) });
-      if (checkinResult.status === "fulfilled") setCheckin({ ...defaultCheckIn, ...(checkinResult.value as Partial<DailyCheckIn>) });
-      if (planResult.status === "fulfilled") setPlan(planResult.value as Recommendation);
-    }).finally(() => setIsLoading(false));
+    api.dashboardSummary()
+      .then((data) => {
+        const summary = data as {
+          profile?: Partial<HealthProfile> | null;
+          latest_checkin?: Partial<DailyCheckIn> | null;
+          latest_recommendation?: Recommendation | null;
+        };
+        if (summary.profile) setProfile({ ...defaultProfile, ...summary.profile });
+        if (summary.latest_checkin) setCheckin({ ...defaultCheckIn, ...summary.latest_checkin });
+        if (summary.latest_recommendation) setPlan(summary.latest_recommendation);
+      })
+      .catch(() => {
+        Promise.allSettled([
+          api.profile(),
+          api.latestCheckIn(),
+          api.latestRecommendation(),
+        ]).then(([profileResult, checkinResult, planResult]) => {
+          if (profileResult.status === "fulfilled") setProfile({ ...defaultProfile, ...(profileResult.value as Partial<HealthProfile>) });
+          if (checkinResult.status === "fulfilled") setCheckin({ ...defaultCheckIn, ...(checkinResult.value as Partial<DailyCheckIn>) });
+          if (planResult.status === "fulfilled") setPlan(planResult.value as Recommendation);
+        });
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) {

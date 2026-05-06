@@ -5,9 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { bmi, bmiLabel, defaultProfile } from '../lib/recommendationData';
 import type { HealthProfile } from '../lib/recommendationData';
+import { useTheme } from '../contexts/ThemeContext';
+import { displayHeight, displayWeight, heightUnit, weightUnit } from '../lib/units';
 
 export default function UserAccount() {
   const { user } = useAuth();
+  const { measurementSystem } = useTheme();
   const [profile, setProfile] = useState<HealthProfile | null>(null);
 
   useEffect(() => {
@@ -70,8 +73,8 @@ export default function UserAccount() {
             {profile ? (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <BioCard label="Age" value={String(profile.age)} />
-                <BioCard label="Weight" value={`${profile.weight} kg`} />
-                <BioCard label="Height" value={`${profile.height} cm`} />
+                <BioCard label="Weight" value={`${displayWeight(profile.weight, measurementSystem)} ${weightUnit(measurementSystem).toLowerCase()}`} />
+                <BioCard label="Height" value={`${displayHeight(profile.height, measurementSystem)} ${heightUnit(measurementSystem).toLowerCase()}`} />
                 <BioCard label="BMI" value={String(bmiValue)} status={bmiLabel(bmiValue)} />
               </div>
             ) : (

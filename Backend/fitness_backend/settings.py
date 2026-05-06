@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'profiles.apps.ProfilesConfig',
     'recommendations.apps.RecommendationsConfig',
+    'billing.apps.BillingConfig',
+    'chat.apps.ChatConfig',
 ]
 
 MIDDLEWARE = [
@@ -135,6 +137,7 @@ REST_FRAMEWORK = {
         'login': '5/minute',
         'register': '3/minute',
         'recommendations': '30/minute',
+        'password_reset': '10/day',
     }
 }
 
@@ -190,6 +193,15 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
 
+# Email Configuration
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 # Logging
 LOGGING = {
     'version': 1,
@@ -229,3 +241,8 @@ SPECTACULAR_SETTINGS = {
 
 # Dataset paths
 DATASET_DIR = BASE_DIR / 'data'
+
+# NVIDIA/OpenAI-compatible LLM settings for help chat
+NVIDIA_API_KEY = config('NVIDIA_API_KEY', default='')
+NVIDIA_API_URL = config('NVIDIA_API_URL', default='https://integrate.api.nvidia.com/v1/chat/completions')
+NVIDIA_LLM_MODEL = config('NVIDIA_LLM_MODEL', default='meta/llama-3.1-70b-instruct')

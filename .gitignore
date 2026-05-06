@@ -24,6 +24,7 @@ htmlcov/
 db.sqlite3
 *.sqlite3
 media/
+Backend/media/chat_knowledge_base/
 staticfiles/
 
 # ML model artifacts — never commit these

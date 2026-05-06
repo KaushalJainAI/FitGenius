@@ -30,6 +30,7 @@ EQUIPMENT_MAP = {'bodyweight': 0, 'resistance_bands': 1, 'dumbbells': 2, 'home_g
 DIETARY_MAP = {
     'no_preference': 0, 'vegetarian': 1, 'non_veg': 2, 'vegan': 3,
     'pescatarian': 4, 'keto': 5, 'paleo': 6, 'mediterranean': 7,
+    'regular': 8, 'low_sodium': 9, 'low_sugar': 10,
 }
 SLEEP_MAP = {'poor': 0, 'fair': 1, 'good': 2}
 ALCOHOL_MAP = {'none': 0, 'occasional': 1, 'regular': 2}
@@ -271,6 +272,7 @@ def knn_top_k_aggregate(profile, k: int = K_NEIGHBORS) -> tuple:
                 'Age': profile.age,
                 'Height': profile.height,
                 'Weight': profile.weight,
+                'BMI': profile.bmi,
                 'Gender': _safe_get_display(profile.get_gender_display, 'Male'),
                 'Chronic_Disease': profile.chronic_disease or 'None',
                 'Activity_Level': _safe_get_display(profile.get_activity_level_display, 'Moderate'),

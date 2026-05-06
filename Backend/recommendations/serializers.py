@@ -23,7 +23,15 @@ class RecommendationSerializer(serializers.ModelSerializer):
             'similar_profiles_count', 'avg_similarity_score',
             'created_at', 'updated_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = (
+            'id', 'user', 'status', 'confidence', 'algorithm_used',
+            'workout_split', 'exercise_plan', 'workout_days_per_week',
+            'diet_plan', 'daily_calorie_target', 'macro_split',
+            'health_notes', 'llm_recommendation', 'rag_context_chunks',
+            'profile_snapshot', 'checkin_snapshot', 'explanation',
+            'similar_profiles_count', 'avg_similarity_score',
+            'created_at', 'updated_at',
+        )
 
 
 class RecommendationListSerializer(serializers.ModelSerializer):
@@ -38,7 +46,15 @@ class RecommendationListSerializer(serializers.ModelSerializer):
             'similar_profiles_count', 'avg_similarity_score',
             'created_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = (
+            'id', 'user', 'status', 'confidence', 'algorithm_used',
+            'workout_split', 'exercise_plan', 'workout_days_per_week',
+            'diet_plan', 'daily_calorie_target', 'macro_split',
+            'health_notes', 'llm_recommendation', 'rag_context_chunks',
+            'profile_snapshot', 'checkin_snapshot', 'explanation',
+            'similar_profiles_count', 'avg_similarity_score',
+            'created_at', 'updated_at',
+        )
 
 
 class DatasetEntrySerializer(serializers.ModelSerializer):

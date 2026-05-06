@@ -40,7 +40,7 @@ export default function MyPlan() {
               {recommendation.workout_split} ({recommendation.workout_days_per_week} days/week)
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {recommendation.algorithm_used} model • {recommendation.similar_profiles_count} similar profiles • {Math.round(recommendation.avg_similarity_score * 100)}% match
+              {recommendation.algorithm_used} model • {recommendation.similar_profiles_count} similar profiles • {recommendation.avg_similarity_score == null ? "N/A" : `${Math.round(recommendation.avg_similarity_score * 100)}%`} match
             </p>
           </div>
           <div className="flex items-center gap-3">

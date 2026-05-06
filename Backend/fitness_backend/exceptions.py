@@ -40,7 +40,7 @@ def custom_exception_handler(exc, context):
 
         logger.warning("Validation error in %s: %s", _get_view_name(context), errors)
         return Response(
-            {'success': False, 'error': 'Validation error', 'details': errors},
+            {'success': False, 'detail': 'Validation error', 'errors': errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -48,7 +48,7 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, (ValueError, TypeError)):
         logger.warning("Bad request data in %s: %s", _get_view_name(context), str(exc))
         return Response(
-            {'success': False, 'error': f'Invalid input: {str(exc)}'},
+            {'success': False, 'detail': f'Invalid input: {str(exc)}', 'errors': str(exc)},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -56,7 +56,7 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, KeyError):
         logger.warning("Missing key in %s: %s", _get_view_name(context), str(exc))
         return Response(
-            {'success': False, 'error': f'Missing required field: {str(exc)}'},
+            {'success': False, 'detail': f'Missing required field: {str(exc)}', 'errors': str(exc)},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -64,14 +64,14 @@ def custom_exception_handler(exc, context):
     if isinstance(exc, AttributeError):
         logger.error("AttributeError in %s: %s", _get_view_name(context), str(exc), exc_info=True)
         return Response(
-            {'success': False, 'error': 'An internal error occurred. Please try again later.'},
+            {'success': False, 'detail': 'An internal error occurred. Please try again later.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
     # Everything else
     logger.error("Unhandled exception in %s: %s", _get_view_name(context), str(exc), exc_info=True)
     return Response(
-        {'success': False, 'error': 'An unexpected error occurred. Please try again later.'},
+        {'success': False, 'detail': 'An unexpected error occurred. Please try again later.'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
 
@@ -89,10 +89,10 @@ def _normalize_error(data, status_code):
     """Normalize DRF's default error format into a consistent shape."""
     if isinstance(data, dict):
         if 'detail' in data and len(data) == 1:
-            return {'success': False, 'error': str(data['detail'])}
+            return {'success': False, 'detail': str(data['detail'])}
         if 'success' in data:
             return data
-        return {'success': False, 'error': 'Validation error', 'details': data}
+        return {'success': False, 'detail': 'Validation error', 'errors': data}
     if isinstance(data, list):
-        return {'success': False, 'error': '; '.join(str(e) for e in data)}
-    return {'success': False, 'error': str(data)}
+        return {'success': False, 'detail': '; '.join(str(e) for e in data), 'errors': data}
+    return {'success': False, 'detail': str(data)}
